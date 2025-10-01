@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}Cadastro de Usuários{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Cadastro de Usuários</h2>
+
+    <!-- Formulário de Cadastro -->
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('cadastrar_usuario') }}">
+                <div class="mb-3">
+                    <label for="login" class="form-label">Login</label>
+                    <input type="text" class="form-control" id="login" name="user_id" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="nome" class="form-label">Nome</label>
+                    <input type="text" class="form-control" id="nome" name="nome" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="senha" class="form-label">Senha</label>
+                    <input type="password" class="form-control" id="senha" name="senha" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="grupo" class="form-label">Grupo de Acesso</label>
+                    <select class="form-select" id="grupo" name="grupo" required>
+                        <option value="">Selecione um grupo</option>
+                        <option value="admin">Administrador</option>
+                        <option value="medico">Médico</option>
+                        <option value="tecnico">Técnico</option>
+                    </select>
+                </div>
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="active" name="active">
+                    <label class="form-check-label" for="active">Ativo</label>
+                </div>
+                <button type="submit" class="btn btn-primary">Cadastrar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Lista de Usuários -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Usuários Cadastrados</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Login</th>
+                        <th>Nome</th>
+                        <th>Grupo</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for usuario in usuarios %}
+                    <tr data-id="{{ usuario.id }}" data-active="{{ '1' if usuario.active else '0' }}">
+                        <td>{{ usuario.id }}</td>
+                        <td>{{ usuario.user_id }}</td>
+                        <td>{{ usuario.nome }}</td>
+                        <td>{{ usuario.grupo }}</td>
+                        <td>{{ 'Ativo' if usuario.active else 'Inativo' }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-warning" onclick="editarUsuario('{{ usuario.id }}')"><i
+                                    class="fas fa-edit"></i></button>
+                            <button class="btn btn-sm btn-danger" onclick="excluirUsuario('{{ usuario.id }}')"><i
+                                    class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Edição -->
+<div class="modal fade" id="modalEdicao" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Usuário</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formEdicao">
+                    <input type="hidden" id="edit_id" name="id">
+                    <div class="mb-3">
+                        <label for="edit_login" class="form-label">Login</label>
+                        <input type="text" class="form-control" id="edit_login" name="user_id" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_nome" class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="edit_nome" name="nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_senha" class="form-label">Nova Senha</label>
+                        <input type="password" class="form-control" id="edit_senha" name="senha"
+                            placeholder="Deixe em branco para manter a senha atual">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_grupo" class="form-label">Grupo de Acesso</label>
+                        <select class="form-select" id="edit_grupo" name="grupo" required>
+                            <option value="">Selecione um grupo</option>
+                            <option value="admin">Administrador</option>
+                            <option value="medico">Médico</option>
+                            <option value="tecnico">Técnico</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="edit_active" name="active">
+                        <label class="form-check-label" for="edit_active">Ativo</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarEdicao()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmação de Exclusão -->
+<div class="modal fade" id="modalExclusao" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Exclusão</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Deseja realmente excluir este usuário?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="btnConfirmarExclusao">Excluir</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function editarUsuario(id) {
+        const usuario = document.querySelector(`tr[data-id="${id}"]`);
+        const modal = new bootstrap.Modal(document.getElementById('modalEdicao'));
+
+        document.getElementById('edit_id').value = id;
+        document.getElementById('edit_login').value = usuario.querySelector('td:nth-child(2)').textContent;
+        document.getElementById('edit_nome').value = usuario.querySelector('td:nth-child(3)').textContent;
+        document.getElementById('edit_grupo').value = usuario.querySelector('td:nth-child(4)').textContent;
+
+        // Preencher o campo "Ativo" com base no atributo data-active
+        const isActive = usuario.getAttribute('data-active') === '1';
+        document.getElementById('edit_active').checked = isActive;
+
+        modal.show();
+    }
+
+    function salvarEdicao() {
+        const formData = new FormData(document.getElementById('formEdicao'));
+        const id = formData.get('id');
+
+        fetch(`/configuracoes/usuarios/editar/${id}`, {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => {
+                // Verifica se a resposta é um redirecionamento (HTML) em vez de JSON
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('text/html')) {
+                    // Se retornou HTML, significa que foi redirecionado (usuário sem permissão)
+                    alert('Acesso negado. Apenas administradores podem realizar esta ação.');
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.success) {
+                    window.location.reload();
+                } else if (data) {
+                    alert('Erro ao salvar as alterações: ' + data.message);
+                }
+            });
+    }
+
+    function excluirUsuario(id) {
+        const modal = new bootstrap.Modal(document.getElementById('modalExclusao'));
+        const btnConfirmar = document.getElementById('btnConfirmarExclusao');
+
+        btnConfirmar.onclick = function () {
+            fetch(`/configuracoes/usuarios/excluir/${id}`, {
+                method: 'DELETE'
+            })
+                .then(response => {
+                    // Verifica se a resposta é um redirecionamento (HTML) em vez de JSON
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('text/html')) {
+                        // Se retornou HTML, significa que foi redirecionado (usuário sem permissão)
+                        alert('Acesso negado. Apenas administradores podem realizar esta ação.');
+                        return;
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && data.success) {
+                        window.location.reload();
+                    }
+                });
+            modal.hide();
+        };
+
+        modal.show();
+    }
+</script>
+{% endblock %}

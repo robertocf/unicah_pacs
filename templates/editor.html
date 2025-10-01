@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Editor de Laudo{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<style>
+  #editor-container {
+    height: 300px;
+  }
+  .ql-editor {
+    font-size: 16px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column align-items-center justify-content-center" style="min-height: 80vh;">
+  <div class="w-100" style="max-width: 900px;">
+    <h2 class="mb-4 text-center">Editor de Laudo</h2>
+    <form method="POST">
+      <div id="editor-container"></div>
+      <input type="hidden" name="conteudo_html" id="conteudo_html">
+      <br>
+      <div class="d-flex justify-content-center">
+        <button type="submit" onclick="submitForm()" class="btn btn-primary">Salvar Laudo</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+<script>
+  var quill = new Quill('#editor-container', {
+    theme: 'snow',
+    placeholder: 'Digite o laudo aqui...',
+    modules: {
+      toolbar: [
+        [{ header: [1, 2, false] }],
+        ['bold', 'italic', 'underline'],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        [{ 'align': [] }],
+        [{ 'color': [] }, { 'background': [] }],
+        ['clean']
+      ]
+    }
+  });
+
+  function submitForm() {
+    const html = quill.root.innerHTML;
+    document.getElementById("conteudo_html").value = html;
+  }
+</script>
+{% endblock %}

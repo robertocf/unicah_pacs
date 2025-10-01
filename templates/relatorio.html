@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Relatório de Armazenamento PACS{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Relatório de Armazenamento PACS</h2>
+    <form class="row g-3 mb-4" method="get">
+        <div class="col-md-3">
+            <label for="data_inicio" class="form-label">Data de Início</label>
+            <input type="date" class="form-control" id="data_inicio" name="data_inicio" value="{{ data_inicio }}">
+        </div>
+        <div class="col-md-3">
+            <label for="data_fim" class="form-label">Data de Fim</label>
+            <input type="date" class="form-control" id="data_fim" name="data_fim" value="{{ data_fim }}">
+        </div>
+        <div class="col-md-3">
+            <label for="diretorio" class="form-label">Diretório</label>
+            <select class="form-select" id="diretorio" name="diretorio">
+                <option value="">Todos os diretórios</option>
+                {% for dir in diretorios_disponiveis %}
+                <option value="{{ dir }}" {% if dir == diretorio_filtro %}selected{% endif %}>{{ dir }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 align-self-end">
+            <button type="submit" class="btn btn-primary">Pesquisar</button>
+        </div>
+    </form>
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="card-title mb-0">Resumo</h5>
+        </div>
+        <div class="card-body">
+            <p><strong>Total de Estudos:</strong> {{ total_estudos }}</p>
+            <p><strong>Total de Pacientes:</strong> {{ total_pacientes }}</p>
+            <p><strong>Armazenamento Total:</strong> {{ total_gb }} GB ({{ total_mb }} MB)</p>
+            <p><strong>% Feminino:</strong> {{ perc_fem }}% &nbsp; <strong>% Masculino:</strong> {{ perc_masc }}%</p>
+            <p><strong>Média de Idade:</strong> {{ media_idade }} anos</p>
+        </div>
+    </div>
+    <div class="card mt-4">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="card-title mb-0">Detalhamento por Paciente</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th style="width: 9%">ID Paciente</th>
+                            <th style="width: 25%">Nome</th>
+                            <th style="width: 5%">Qtd. Estudos</th>
+                            <th style="width: 15%">Qtd. Armazenada (MB)</th>
+                            <th style="width: 7%">Diretórios</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for paciente in pacientes %}
+                        <tr>
+                            <td>{{ paciente.pat_id }}</td>
+                            <td>{{ paciente.pat_name }}</td>
+                            <td>{{ paciente.qtd_estudos }}</td>
+                            <td>{{ paciente.qtd_mb }}</td>
+                            <td>
+                                {% for dir in paciente.diretorios %}
+                                    <span class="badge bg-info">{{ dir }}</span>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

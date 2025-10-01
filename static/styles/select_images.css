@@ -1,0 +1,83 @@
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+h2 {
+    color: #333;
+    margin-bottom: 30px;
+}
+
+.btn-outline-secondary {
+    padding: 10px 25px;
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+
+.btn-lg {
+    padding: 12px 30px;
+    font-size: 16px;
+}
+
+.thumbnail {
+    width: 100%;
+    height: 300px;
+    object-fit: contain;
+    border: 1px solid #ddd;
+    margin-bottom: 10px;
+    transition: transform 0.2s;
+}
+
+.image-box {
+    position: relative;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 15px;
+    text-align: center;
+    background-color: #f9f9f9;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.image-box:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.image-box.selected {
+    border-color: #007bff;
+    background-color: #f0f7ff;
+}
+
+.row {
+    margin: 0 -10px;
+}
+
+.col-md-4 {
+    padding: 0 10px;
+}
+
+.overlay-number {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            background-color: rgba(0, 123, 255, 0.8);
+            color: white;
+            font-weight: bold;
+            padding: 4px 7px;
+            border-radius: 50%;
+            font-size: 14px;
+            display: none;
+}
+
+.image-box.selected .overlay-number {
+            display: inline-block;
+}
+
+.thumbnail.loading {
+    background: #f8f9fa url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiBzdHJva2U9IiMwMDdiZmYiPjxnIGZpbGw9Im5vbmUiIGZpbGwtcnVsZT0iZXZlbm9kZCI+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMSAxKSIgc3Ryb2tlLXdpZHRoPSIyIj48Y2lyY2xlIHN0cm9rZS1vcGFjaXR5PSIuNSIgY3g9IjE4IiBjeT0iMTgiIHI9IjE4Ii8+PHBhdGggZD0ibTM5IDM5YzAtOS45NC04LjA2LTE4LTE4LTE4Ij48YW5pbWF0ZVRyYW5zZm9ybSBhdHRyaWJ1dGVOYW1lPSJ0cmFuc2Zvcm0iIHR5cGU9InJvdGF0ZSIgZnJvbT0iMCAzOSAzOSIgdG89IjM2MCAzOSAzOSIgZHVyPSIxcyIgcmVwZWF0Q291bnQ9ImluZGVmaW5pdGUiLz48L3BhdGg+PC9nPjwvZz48L3N2Zz4=') no-repeat center center;
+    background-size: 40px 40px;
+}
+

@@ -1,0 +1,28 @@
+<h2>Impressões Recebidas</h2>
+<table class="table">
+  <thead>
+    <tr>
+      <th>Paciente</th>
+      <th>Modalidade</th>
+      <th>Tipo de Filme</th>
+      <th>Formato</th>
+      <th>Recebido em</th>
+      <th>Ações</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in impressos %}
+    <tr>
+      <td>{{ item.patient_id }}</td>
+      <td>{{ item.modality }}</td>
+      <td>{{ item.filme_tipo }}</td>
+      <td>{{ item.formato }}</td>
+      <td>{{ item.recebido_em }}</td>
+      <td>
+        <a href="/visualizar/{{ item.id }}" class="btn btn-sm btn-primary">Visualizar</a>
+        <a href="/imprimir/{{ item.id }}" class="btn btn-sm btn-success">Imprimir</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

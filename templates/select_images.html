@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+
+{% block title %}Selecionar Imagens{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='styles/select_images.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4 text-center">Selecionar Imagens para Impressão</h2>
+
+    <form method="POST" action="{{ url_for('generate_selected_pdf', study_uid=study_uid) }}">
+        <div class="mb-4 text-center">
+            <button type="button" class="btn btn-outline-secondary" id="btn-toggle-all">Selecionar Tudo</button>
+        </div>
+        <div class="mb-4 text-center">
+            <label for="layout" class="form-label">Layout de Impressão:</label>
+            <select class="form-select w-auto d-inline-block" id="layout" name="layout">
+                <option value="2x3" selected>3 linhas x 2 colunas (6 por página)</option>
+                <option value="1x1">1 linha x 1 coluna (1 por página)</option>
+                <option value="2x2">2 linhas x 2 colunas (4 por página)</option>
+            </select>
+        </div>
+
+    <div class="row gx-2 gy-2">
+        {% for path in dicom_files %}
+        <div class="col-md-4 col-sm-6">
+            <div class="image-box">
+                <div class="position-relative image-click-wrapper" data-index="{{ loop.index }}">
+                    <span class="overlay-number"></span>
+                    <img src="" alt="Imagem DICOM" data-path="{{ path }}" data-study-uid="{{ study_uid }}"
+                        class="thumbnail mb-2 img-select" data-index="{{ loop.index }}">
+                </div>
+                <div class="form-check d-none">
+                    <input class="form-check-input checkbox-img" type="checkbox" name="selected_files"
+                        value="{{ path }}" id="checkbox{{ loop.index }}">
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+        <div class="mt-4 text-center">
+            <button type="submit" class="btn btn-primary btn-lg" id="btn-gerar-pdf">
+                Imprimir com Selecionadas (0)
+            </button>
+            <a href="{{ url_for('homepage') }}" class="btn btn-secondary btn-lg ms-2">Cancelar</a>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const checkboxes = document.querySelectorAll(".checkbox-img");
+        const btn = document.getElementById("btn-gerar-pdf");
+        const toggleBtn = document.getElementById("btn-toggle-all");
+        const imageBoxes = document.querySelectorAll(".image-click-wrapper");
+
+        function updateCounter() {
+            const selected = Array.from(checkboxes).filter(cb => cb.checked);
+            btn.textContent = `Imprimir com Selecionadas (${selected.length})`;
+
+            toggleBtn.textContent = selected.length === checkboxes.length ? "Limpar Seleção" : "Selecionar Tudo";
+
+            document.querySelectorAll(".image-box").forEach(box => {
+                box.classList.remove("selected");
+                const numberTag = box.querySelector(".overlay-number");
+                if (numberTag) numberTag.textContent = "";
+            });
+
+            selected.forEach((cb, index) => {
+                const box = cb.closest(".image-box");
+                const numberTag = box.querySelector(".overlay-number");
+                if (box && numberTag) {
+                    box.classList.add("selected");
+                    numberTag.textContent = index + 1;
+                }
+            });
+        }
+
+        imageBoxes.forEach(wrapper => {
+            wrapper.addEventListener("click", () => {
+                const index = wrapper.dataset.index;
+                const checkbox = document.getElementById(`checkbox${index}`);
+                if (checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    updateCounter();
+                }
+            });
+        });
+
+        checkboxes.forEach(cb => cb.addEventListener("change", updateCounter));
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener("click", function () {
+                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                checkboxes.forEach(cb => cb.checked = !allChecked);
+                updateCounter();
+            });
+        }
+
+        updateCounter();
+        
+        // Carregar imagens de forma segura
+        async function loadSecureImage(img) {
+            const path = img.dataset.path;
+            const studyUid = img.dataset.studyUid;
+            
+            // Adicionar indicador de carregamento
+            img.classList.add('loading');
+            
+            try {
+                const response = await fetch(`/thumbnail?path=${encodeURIComponent(path)}&study_uid=${encodeURIComponent(studyUid)}`, {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const blobUrl = URL.createObjectURL(blob);
+                    img.src = blobUrl;
+                    
+                    // Remover indicador de carregamento quando a imagem carregar
+                    img.addEventListener('load', () => {
+                        img.classList.remove('loading');
+                        img.dataset.blobUrl = blobUrl;
+                    });
+                } else {
+                    img.classList.remove('loading');
+                    img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkVycm8gYW8gY2FycmVnYXI8L3RleHQ+PC9zdmc+';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar imagem:', error);
+                img.classList.remove('loading');
+                img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkVycm8gYW8gY2FycmVnYXI8L3RleHQ+PC9zdmc+';
+            }
+        }
+        
+        // Carregar todas as imagens
+        const images = document.querySelectorAll('.thumbnail');
+        images.forEach(img => {
+            loadSecureImage(img);
+        });
+        
+        // Limpar blob URLs quando a página for descarregada
+        window.addEventListener('beforeunload', () => {
+            images.forEach(img => {
+                if (img.dataset.blobUrl) {
+                    URL.revokeObjectURL(img.dataset.blobUrl);
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

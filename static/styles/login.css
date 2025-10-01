@@ -1,0 +1,85 @@
+body {
+  margin: 0;
+  font-family: sans-serif;
+}
+
+.container {
+  display: flex;
+  height: 100vh;
+}
+
+.left-side {
+  width: 50%;
+  background: #8680c7;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border-bottom-right-radius: 180px;
+  border-top-right-radius: 180px;
+}
+
+.left-side h2 {
+  font-size: 28px;
+}
+
+.left-side button {
+  background: transparent;
+  border: 1px solid white;
+  color: white;
+  padding: 8px 20px;
+  border-radius: 20px;
+  margin-top: 10px;
+}
+
+.right-side {
+  width: 50%;
+  padding: 50px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo {
+  width: 200px;
+  margin: 20px 0;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 80%;
+  max-width: 300px;
+}
+
+input {
+  padding: 10px;
+  border: none;
+  background: #f2f2f2;
+  border-radius: 5px;
+}
+
+button[type="submit"] {
+  background: #8680c7;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.forgot {
+  font-size: 12px;
+  text-align: right;
+  color: #555;
+}
+
+.erro {
+  color: red;
+  font-size: 14px;
+  text-align: center;
+}

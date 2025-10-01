@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Login | ULTRON</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles/login.css') }}">
+</head>
+<body>
+  <div class="container">
+    <div class="left-side">
+      <h2>Olá, Bem Vindo!</h2>
+      <p>Não tem uma conta ?</p>
+      <button type="submit">Registrar</button>
+    </div>
+    <div class="right-side">
+      <h2 style="color: #8680c7;">Login</h2>
+      <img src="{{ url_for('static', filename='logo_ultron-removebg-preview.png') }}" alt="ULTRON" class="logo">
+      <form method="POST">
+        <input type="text" name="username" placeholder="Username" required>
+        <input type="password" name="password" placeholder="Password" required>
+        <div class="forgot">Esqueceu a senha ?</div>
+        {% if erro %}
+          <p class="erro">{{ erro }}</p>
+        {% endif %}
+        <button type="submit">LOGIN</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

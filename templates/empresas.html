@@ -1,0 +1,453 @@
+{% extends "base.html" %}
+
+{% block title %}Cadastro de Empresas{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Cadastro de Empresas</h2>
+
+    <!-- Formulário de Cadastro -->
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('cadastrar_empresa') }}" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="organization" class="form-label">Nome da Empresa</label>
+                    <input type="text" class="form-control" id="organization" name="organization" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="logo" class="form-label">Logo da Empresa (402x127 pixels)</label>
+                    <input type="file" class="form-control" id="logo" name="logo" accept="image/*">
+                    <small class="form-text text-muted">A imagem deve ter exatamente 402x127 pixels.</small>
+                    <img id="logo_preview"
+                        style="max-width: 402px; max-height: 127px; margin-top: 10px; display: none;">
+                </div>
+                <div class="mb-3">
+                    <label for="presentation" class="form-label">Apresentação</label>
+                    <textarea class="form-control" id="presentation" name="presentation" rows="3"></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" name="email">
+                </div>
+
+                <div class="mb-3">
+                    <label for="phone" class="form-label">Telefone</label>
+                    <input type="text" class="form-control" id="phone" name="phone">
+                </div>
+
+                <div class="mb-3">
+                    <label for="cnpj" class="form-label">CNPJ</label>
+                    <input type="text" class="form-control" id="cnpj" name="cnpj" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="address" class="form-label">Endereço</label>
+                    <input type="text" class="form-control" id="address" name="address">
+                </div>
+
+                <div class="mb-3">
+                    <label for="start_contract" class="form-label">Início do Contrato</label>
+                    <input type="date" class="form-control" id="start_contract" name="start_contract">
+                </div>
+
+                <div class="mb-3">
+                    <label for="expiration" class="form-label">Vencimento do Contrato</label>
+                    <input type="date" class="form-control" id="expiration" name="expiration">
+                </div>
+
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="active" name="active" checked>
+                    <label class="form-check-label" for="active">Ativo</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Cadastrar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Lista de Empresas -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Empresas Cadastradas</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th style="width: 5%">ID</th>
+                        <th style="width: 22%">Empresa</th>
+                        <th style="width: 10%">Apresentação</th>
+                        <th style="width: 15%">Email</th>
+                        <th style="width: 12%">CNPJ</th>
+                        <th style="width: 10%">Expiração</th>
+                        <th style="width: 8%">Status</th>
+                        <th style="width: 5%">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for empresa in empresas %}
+                    <tr data-id="{{ empresa.pk }}">
+                        <td>{{ empresa.pk }}</td>
+                        <td>{{ empresa.organization }}</td>
+                        <td>{{ empresa.presentation }}</td>
+                        <td>{{ empresa.email }}</td>
+                        <td>{{ empresa.cnpj }}</td>
+                        <td>{{ empresa.expiration.strftime('%d/%m/%Y') if empresa.expiration else '-' }}</td>
+                        <td>{{ 'Ativo' if empresa.active else 'Inativo' }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-warning" onclick="editarEmpresa('{{ empresa.pk }}')"><i
+                                    class="fas fa-edit"></i></button>
+                            <button class="btn btn-sm btn-danger" onclick="excluirEmpresa('{{ empresa.pk }}')"><i
+                                    class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Edição -->
+<div class="modal fade" id="modalEdicao" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Empresa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formEdicao" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="edit_organization" class="form-label">Nome da Empresa</label>
+                        <input type="text" class="form-control" id="edit_organization" name="organization" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_logo" class="form-label">Logo da Empresa (402x127 pixels)</label>
+                        <input type="file" class="form-control" id="edit_logo" name="logo" accept="image/*">
+                        <small class="form-text text-muted">A imagem deve ter exatamente 402x127 pixels.</small>
+                        <img id="edit_logo_preview"
+                            style="max-width: 402px; max-height: 127px; margin-top: 10px; display: none;">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_presentation" class="form-label">Apresentação</label>
+                        <textarea class="form-control" id="edit_presentation" name="presentation" rows="3"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="edit_email" name="email">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_phone" class="form-label">Telefone</label>
+                        <input type="text" class="form-control" id="edit_phone" name="phone">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_cnpj" class="form-label">CNPJ</label>
+                        <input type="text" class="form-control" id="edit_cnpj" name="cnpj" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_address" class="form-label">Endereço</label>
+                        <input type="text" class="form-control" id="edit_address" name="address">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_start_contract" class="form-label">Início do Contrato</label>
+                        <input type="date" class="form-control" id="edit_start_contract" name="start_contract">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_expiration" class="form-label">Vencimento do Contrato</label>
+                        <input type="date" class="form-control" id="edit_expiration" name="expiration">
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="edit_active" name="active">
+                        <label class="form-check-label" for="edit_active">Ativo</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarEdicao()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmação de Exclusão -->
+<div class="modal fade" id="modalExclusao" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Exclusão</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Deseja realmente excluir esta empresa?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="btnConfirmarExclusao">Excluir</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Função para validar dimensões da imagem
+    function validateImageDimensions(file, callback) {
+        const img = new Image();
+        img.onload = function () {
+            if (img.width === 402 && img.height === 127) {
+                callback(true);
+            } else {
+                callback(false);
+            }
+        };
+        img.onerror = function () {
+            callback(false);
+        };
+        img.src = URL.createObjectURL(file);
+    }
+
+    // Função para mostrar preview da logo selecionada
+    function previewLogo(input, previewId) {
+        const preview = document.getElementById(previewId);
+        if (input.files && input.files[0]) {
+            validateImageDimensions(input.files[0], function (isValid) {
+                if (!isValid) {
+                    mostrarAlerta('A imagem deve ter exatamente 402x127 pixels.', 'danger');
+                    input.value = ''; // Limpa o input
+                    if (preview) preview.style.display = 'none';
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    if (!preview) {
+                        const img = document.createElement('img');
+                        img.id = previewId;
+                        img.style.maxWidth = '402px';
+                        img.style.maxHeight = '127px';
+                        img.style.marginTop = '10px';
+                        img.src = e.target.result;
+                        input.parentNode.appendChild(img);
+                    } else {
+                        preview.src = e.target.result;
+                        preview.style.display = 'block';
+                    }
+                };
+                reader.readAsDataURL(input.files[0]);
+            });
+        } else if (preview) {
+            preview.style.display = 'none';
+        }
+    }
+
+    // Função para mostrar alertas
+    function mostrarAlerta(mensagem, tipo) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${tipo} alert-dismissible fade show`;
+        alertDiv.role = 'alert';
+        alertDiv.innerHTML = `
+        ${mensagem}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+        document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.card'));
+
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 4000);
+    }
+
+    // Função para editar empresa
+    function editarEmpresa(id) {
+        window.empresaId = id;
+        fetch(`/configuracoes/empresas/buscar/${id}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('edit_organization').value = data.organization;
+                document.getElementById('edit_presentation').value = data.presentation;
+                document.getElementById('edit_email').value = data.email;
+                document.getElementById('edit_phone').value = data.phone;
+                document.getElementById('edit_cnpj').value = data.cnpj;
+                document.getElementById('edit_address').value = data.address;
+                // Converte a data do formato dd-mm-yyyy para yyyy-mm-dd para start_contract
+                if (data.start_contract && data.start_contract !== 'None' && data.start_contract !== '') {
+                    const parts = data.start_contract.split('-');
+                    if (parts.length === 3) {
+                        const formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                        document.getElementById('edit_start_contract').value = formattedDate;
+                    }
+                } else {
+                    document.getElementById('edit_start_contract').value = '';
+                }
+                
+                // Converte a data do formato dd-mm-yyyy para yyyy-mm-dd para expiration
+                if (data.expiration && data.expiration !== 'None' && data.expiration !== '') {
+                    const parts = data.expiration.split('-');
+                    if (parts.length === 3) {
+                        const formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                        document.getElementById('edit_expiration').value = formattedDate;
+                    }
+                } else {
+                    document.getElementById('edit_expiration').value = '';
+                }
+                document.getElementById('edit_active').checked = data.active;
+
+                const logoInput = document.getElementById('edit_logo');
+                logoInput.removeAttribute('required');
+
+                const logoPreview = document.getElementById('edit_logo_preview');
+                if (data.logo_path) {
+                    logoPreview.src = `/static/logos/${data.logo_path}`;
+                    logoPreview.style.display = 'block';
+                } else {
+                    logoPreview.style.display = 'none';
+                }
+
+                const modal = new bootstrap.Modal(document.getElementById('modalEdicao'));
+                modal.show();
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro ao carregar dados da empresa', 'danger');
+            });
+    }
+
+    // Função para salvar edição
+    function salvarEdicao() {
+        const form = document.getElementById('formEdicao');
+        if (!form) {
+            mostrarAlerta('Erro: Formulário não encontrado', 'danger');
+            return;
+        }
+
+        const formData = new FormData(form);
+
+        formData.set('active', document.getElementById('edit_active').checked ? 'on' : '');
+
+        if (!formData.get('start_contract')) formData.set('start_contract', '');
+        if (!formData.get('expiration')) formData.set('expiration', '');
+        if (!formData.get('address')) formData.set('address', '');
+
+        const logoInput = document.getElementById('edit_logo');
+        if (logoInput && logoInput.files.length > 0) {
+            validateImageDimensions(logoInput.files[0], function (isValid) {
+                if (!isValid) {
+                    mostrarAlerta('A imagem deve ter exatamente 402x127 pixels.', 'danger');
+                    logoInput.value = '';
+                    return;
+                }
+                formData.set('logo', logoInput.files[0]);
+                submitEditForm(formData);
+            });
+        } else {
+            submitEditForm(formData);
+        }
+    }
+
+    // Função auxiliar para enviar o formulário de edição
+    function submitEditForm(formData) {
+        if (!window.empresaId) {
+            mostrarAlerta('Erro: ID da empresa não encontrado', 'danger');
+            return;
+        }
+
+        fetch(`/configuracoes/empresas/editar/${window.empresaId}`, {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => {
+                // Verifica se a resposta é um redirecionamento (HTML) em vez de JSON
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('text/html')) {
+                    // Se retornou HTML, significa que foi redirecionado (usuário sem permissão)
+                    mostrarAlerta('Acesso negado. Apenas administradores podem realizar esta ação.', 'danger');
+                    return;
+                }
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.success) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalEdicao'));
+                    modal.hide();
+                    mostrarAlerta('Empresa atualizada com sucesso!', 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else if (data) {
+                    mostrarAlerta('Erro ao atualizar empresa: ' + (data.message || 'Erro desconhecido'), 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro ao atualizar empresa: ' + error.message, 'danger');
+            });
+    }
+
+    // Função para abrir modal de exclusão
+    function excluirEmpresa(id) {
+        window.empresaId = id;
+        const modal = new bootstrap.Modal(document.getElementById('modalExclusao'));
+        modal.show();
+    }
+
+    // Função para confirmar exclusão
+    function confirmarExclusao() {
+        fetch(`/configuracoes/empresas/excluir/${window.empresaId}`, {
+            method: 'DELETE'
+        })
+            .then(response => {
+                // Verifica se a resposta é um redirecionamento (HTML) em vez de JSON
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('text/html')) {
+                    // Se retornou HTML, significa que foi redirecionado (usuário sem permissão)
+                    mostrarAlerta('Acesso negado. Apenas administradores podem realizar esta ação.', 'danger');
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.success) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalExclusao'));
+                    modal.hide();
+                    mostrarAlerta('Empresa excluída com sucesso!', 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else if (data) {
+                    mostrarAlerta('Erro ao excluir empresa: ' + (data.message || 'Erro desconhecido'), 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro ao excluir empresa: ' + error.message, 'danger');
+            });
+    }
+
+    // Adicionar listeners para os campos de logo e botão de exclusão
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('logo').addEventListener('change', function () {
+            previewLogo(this, 'logo_preview');
+        });
+
+        document.getElementById('edit_logo').addEventListener('change', function () {
+            previewLogo(this, 'edit_logo_preview');
+        });
+
+        document.getElementById('btnConfirmarExclusao').addEventListener('click', confirmarExclusao);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Associação de Usuários e Empresas{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Associação de Usuários e Empresas</h2>
+    
+    <!-- Formulário de Associação -->
+    <div class="card">
+        <div class="card-body">
+            <form id="form-associacao">
+                <div class="mb-3">
+                    <label for="usuario" class="form-label">Usuário</label>
+                    <select class="form-select" id="usuario" name="usuario_id" required>
+                        <option value="">Selecione um usuário</option>
+                        {% for usuario in usuarios %}
+                        <option value="{{ usuario.id }}">{{ usuario.nome }} ({{ usuario.user_id }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Empresas</label>
+                    <div class="list-group">
+                        {% for empresa in empresas %}
+                        <label class="list-group-item">
+                            <input class="form-check-input me-1" type="checkbox" name="empresas[]" value="{{ empresa.pk }}">
+                            {{ empresa.organization }} ({{ empresa.cnpj }})
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <button type="button" class="btn btn-primary" onclick="salvarAssociacao()">Salvar Associação</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Lista de Associações -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Associações Existentes</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th style="width: 17%">Usuário</th>
+                        <th style="width: 55%">Empresas Associadas</th>
+                        <th style="width: 10%">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for associacao in associacoes %}
+                    <tr>
+                        <td>{{ associacao.usuario.nome }} ({{ associacao.usuario.user_id }})</td>
+                        <td>
+                            <ul class="list-unstyled mb-0">
+                                {% for empresa in associacao.empresas %}
+                                <li>{{ empresa.organization }}</li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-warning" onclick="editarAssociacao('{{ associacao.usuario.id }}')"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-sm btn-danger" onclick="excluirAssociacao('{{ associacao.usuario.id }}')"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Edição -->
+<div class="modal fade" id="modalEdicao" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Associação</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formEdicao">
+                    <input type="hidden" id="edit_usuario_id" name="usuario_id">
+                    <div class="mb-3">
+                        <label class="form-label">Empresas</label>
+                        <div class="list-group" id="edit_empresas">
+                            {% for empresa in empresas %}
+                            <label class="list-group-item">
+                                <input class="form-check-input me-1" type="checkbox" name="empresas[]" value="{{ empresa.pk }}">
+                                {{ empresa.organization }} ({{ empresa.cnpj }})
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarEdicao()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmação de Exclusão -->
+<div class="modal fade" id="modalExclusao" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Exclusão</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Deseja realmente remover todas as associações deste usuário?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="btnConfirmarExclusao">Excluir</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function salvarAssociacao() {
+    const formData = new FormData(document.getElementById('form-associacao'));
+    const usuarioId = formData.get('usuario_id');
+    
+    fetch(`/configuracoes/associacoes/editar/${usuarioId}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        // Verifica se a resposta é um redirecionamento (HTML) em vez de JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+            // Se retornou HTML, significa que foi redirecionado (usuário sem permissão)
+            alert('Acesso negado. Apenas administradores podem realizar esta ação.');
+            return;
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data && data.success) {
+            window.location.reload();
+        } else if (data) {
+            alert('Erro ao salvar as associações: ' + data.message);
+        }
+    });
+}
+
+
+function editarAssociacao(usuarioId) {
+    fetch(`/configuracoes/associacoes/buscar/${usuarioId}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('edit_usuario_id').value = usuarioId;
+            const checkboxes = document.querySelectorAll('#edit_empresas input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = data.empresas.includes(parseInt(checkbox.value));
+            });
+            const modal = new bootstrap.Modal(document.getElementById('modalEdicao'));
+            modal.show();
+        });
+}
+
+function salvarEdicao() {
+    const formData = new FormData(document.getElementById('formEdicao'));
+    const usuarioId = formData.get('usuario_id');
+    
+    fetch(`/configuracoes/associacoes/editar/${usuarioId}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        // Verifica se a resposta é um redirecionamento (HTML) em vez de JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+            // Se retornou HTML, significa que foi redirecionado (usuário sem permissão)
+            alert('Acesso negado. Apenas administradores podem realizar esta ação.');
+            return;
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data && data.success) {
+            window.location.reload();
+        } else if (data) {
+            alert('Erro ao salvar as alterações: ' + data.message);
+        }
+    });
+}
+
+function excluirAssociacao(usuarioId) {
+    const modal = new bootstrap.Modal(document.getElementById('modalExclusao'));
+    const btnConfirmar = document.getElementById('btnConfirmarExclusao');
+    
+    btnConfirmar.onclick = function() {
+        fetch(`/configuracoes/associacoes/excluir/${usuarioId}`, {
+            method: 'DELETE'
+        })
+        .then(response => {
+            // Verifica se a resposta é um redirecionamento (HTML) em vez de JSON
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('text/html')) {
+                // Se retornou HTML, significa que foi redirecionado (usuário sem permissão)
+                alert('Acesso negado. Apenas administradores podem realizar esta ação.');
+                return;
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data && data.success) {
+                window.location.reload();
+            }
+        });
+        modal.hide();
+    };
+    
+    modal.show();
+}
+</script>
+{% endblock %}
