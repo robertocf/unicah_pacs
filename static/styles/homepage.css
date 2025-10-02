@@ -109,6 +109,7 @@ body {
 .table td:last-child {
     overflow: visible;
     position: relative;
+    text-align: center;
 }
 
 .table th {
