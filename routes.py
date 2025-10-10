@@ -25,20 +25,8 @@ import zipfile
 import tempfile
 import shutil
 from config import app, db, login_manager, SERVER_IP, NGINX_AUTH_PASSWORD, NGINX_AUTH_USER
+from models.Users import User
 
-
-class User(UserMixin, db.Model):
-    __tablename__ = 'users_app'
-    pk = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(255), unique=True, nullable=False)
-    password = db.Column(db.String(255), nullable=False)
-    name = db.Column(db.String(255))
-    role = db.Column(db.String(255))
-
-    def get_id(self):
-        return str(self.pk)
-
-# Decorator para verificar se o usuário é admin
 
 @app.route('/relatorios', methods=['GET'])
 @login_required
