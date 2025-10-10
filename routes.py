@@ -24,16 +24,17 @@ from werkzeug.utils import secure_filename
 import zipfile
 import tempfile
 import shutil
+from config import app, db, login_manager, SERVER_IP, NGINX_AUTH_PASSWORD, NGINX_AUTH_USER
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'ohhr6T8UmvdC4Ws8Gn1q1pEZ2B5YfF8qDeag9nfe1ojeXVa6OzPb0W7BCVWrIAJgS66XmTrRWiaPzbmEi3uC7zsQKruYS1Q5u9a36GcJCfx2w1jTSAbWW8joG5jkvp53lHA5g93i0452LO4wQRJU8bhDAlYxRhiCMZhEYIkuEjqkpqCQnYcE4BASv6DDMPZv'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:roberto@10.2.0.10/pacsdb'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# app = Flask(__name__)
+# app.config['SECRET_KEY'] = 'ohhr6T8UmvdC4Ws8Gn1q1pEZ2B5YfF8qDeag9nfe1ojeXVa6OzPb0W7BCVWrIAJgS66XmTrRWiaPzbmEi3uC7zsQKruYS1Q5u9a36GcJCfx2w1jTSAbWW8joG5jkvp53lHA5g93i0452LO4wQRJU8bhDAlYxRhiCMZhEYIkuEjqkpqCQnYcE4BASv6DDMPZv'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:roberto@10.2.0.10/pacsdb'
+# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db = SQLAlchemy(app)
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
+# db = SQLAlchemy(app)
+# login_manager = LoginManager()
+# login_manager.init_app(app)
+# login_manager.login_view = 'login'
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users_app'
@@ -137,7 +138,7 @@ def relatorio():
                    COUNT(DISTINCT st.pk) as qtd_estudos,
                    ROUND(COALESCE(SUM(f.file_size), 0) / 1024 / 1024, 2) as qtd_mb,
                    array_agg(DISTINCT f2.dirpath) as diretorios,
-                   array_agg(DISTINCT CONCAT('http://10.2.0.10/', SPLIT_PART(f2.dirpath, E'\\\\', array_length(string_to_array(f2.dirpath, E'\\\\'), 1)), '/', f.filepath)) as caminhos_completos
+                   array_agg(DISTINCT CONCAT('http://{SERVER_IP}/', SPLIT_PART(f2.dirpath, E'\\\\', array_length(string_to_array(f2.dirpath, E'\\\\'), 1)), '/', f.filepath)) as caminhos_completos
             FROM study st
             JOIN patient p ON st.patient_fk = p.pk
             JOIN series sr ON sr.study_fk = st.pk
@@ -156,7 +157,7 @@ def relatorio():
                    COUNT(DISTINCT st.pk) as qtd_estudos,
                    ROUND(COALESCE(SUM(f.file_size), 0) / 1024 / 1024, 2) as qtd_mb,
                    array_agg(DISTINCT f2.dirpath) as diretorios,
-                   array_agg(DISTINCT CONCAT('http://10.2.0.10/', SPLIT_PART(f2.dirpath, E'\\\\', array_length(string_to_array(f2.dirpath, E'\\\\'), 1)), '/', f.filepath)) as caminhos_completos
+                   array_agg(DISTINCT CONCAT('http://{SERVER_IP}/', SPLIT_PART(f2.dirpath, E'\\\\', array_length(string_to_array(f2.dirpath, E'\\\\'), 1)), '/', f.filepath)) as caminhos_completos
             FROM study st
             JOIN patient p ON st.patient_fk = p.pk
             JOIN series sr ON sr.study_fk = st.pk
@@ -364,7 +365,7 @@ def select_images(study_uid):
     dicom_files = [row[0] for row in cur.fetchall()]
     cur.close()
     conn.close()
-    dicom_base_url = f"http://10.2.0.10/{archive_path}/"
+    dicom_base_url = f"http://{SERVER_IP}/{archive_path}/"
     return render_template(
         "select_images.html",
         dicom_files=dicom_files,
@@ -388,7 +389,7 @@ EVN|A23|{datetime.now().strftime('%Y%m%d%H%M%S')}
 PID|1||{pat_id}^^^||{pat_name}^^^||{pat_birthdate.replace('-','')}|{pat_sex}||"""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect(("10.2.0.10", 6663))
+            s.connect(("{SERVER_IP}", 6663))
             s.sendall(b"\x0b" + hl7_msg.encode() + b"\x1c\x0d")
         return jsonify({"message": "Paciente excluído com sucesso!"}), 200
     except Exception as e:
@@ -466,7 +467,7 @@ def generate_selected_pdf(study_uid):
     conn.close()
     if not patient_data:
         return "Dados do paciente não encontrados", 404
-    dicom_base_url = f"http://10.2.0.10/{archive_path}/"
+    dicom_base_url = f"http://{SERVER_IP}/{archive_path}/"
     output_dir = "static/temp"
     os.makedirs(output_dir, exist_ok=True)
     converted_image_paths = []
@@ -477,7 +478,7 @@ def generate_selected_pdf(study_uid):
             
             # Testar diferentes formatos de autenticação HTTP básica
             # Formato 1: Credenciais diretas
-            auth = ('suporte_image', '$apr1$PefDLttp$C.smY/9DZ9PB4ZYaRmria0')
+            auth = (f'{NGINX_AUTH_USER}', f'{NGINX_AUTH_PASSWORD}')
             print(f"DEBUG: Usando autenticação: {auth[0]}")
             
             response = requests.get(dicom_url, auth=auth, timeout=10)
@@ -487,7 +488,7 @@ def generate_selected_pdf(study_uid):
             if response.status_code == 401:
                 print("DEBUG: Erro 401 - Tentando com credenciais alternativas")
                 # Tentar com senha em texto plano
-                auth_alt = ('suporte_image', 'suporte123')
+                auth_alt = (f'{NGINX_AUTH_USER}', f'{NGINX_AUTH_PASSWORD}')
                 response = requests.get(dicom_url, auth=auth_alt, timeout=10)
                 print(f"DEBUG: Status com credenciais alternativas: {response.status_code}")
             
@@ -629,7 +630,7 @@ PID|1||{pat_id}^^^||{pat_name}^^^||{pat_birthdate.replace('-','')}|{pat_sex}||""
     print(hl7_msg)
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect(("10.2.0.10", 6662))
+            s.connect(("{SERVER_IP}", 6662))
             s.sendall(b"\x0b" + hl7_msg.encode() + b"\x1c\x0d")
         return jsonify({"message": "Paciente atualizado com sucesso!"}), 200
     except Exception as e:
@@ -720,7 +721,7 @@ def thumbnail():
         else:
             archive_path = "archive"
     
-    dicom_base_url = f"http://10.2.0.10/{archive_path}/"
+    dicom_base_url = f"http://{SERVER_IP}/{archive_path}/"
     dicom_url = f"{dicom_base_url}{path}"
     thumb_dir = "static/thumbnails"
     os.makedirs(thumb_dir, exist_ok=True)
@@ -731,7 +732,7 @@ def thumbnail():
             print(f"DEBUG THUMBNAIL: Tentando acessar URL: {dicom_url}")
             
             # Testar diferentes formatos de autenticação HTTP básica
-            auth = ('suporte_image', '$apr1$PefDLttp$C.smY/9DZ9PB4ZYaRmria0')
+            auth = (f'{NGINX_AUTH_USER}', f'{NGINX_AUTH_PASSWORD}')
             print(f"DEBUG THUMBNAIL: Usando autenticação: {auth[0]}")
             
             response = requests.get(dicom_url, auth=auth, timeout=10)
@@ -739,7 +740,7 @@ def thumbnail():
             
             if response.status_code == 401:
                 print("DEBUG THUMBNAIL: Erro 401 - Tentando com credenciais alternativas")
-                auth_alt = ('suporte_image', 'suporte123')
+                auth_alt = (f'{NGINX_AUTH_USER}', f'{NGINX_AUTH_PASSWORD}')
                 response = requests.get(dicom_url, auth=auth_alt, timeout=10)
                 print(f"DEBUG THUMBNAIL: Status com credenciais alternativas: {response.status_code}")
             
@@ -1377,7 +1378,7 @@ def download_imagens(study_pk):
         zip_filename = f"{pat_name}_{study_datetime.strftime('%Y%m%d')}_{formato}.zip"
         zip_path = os.path.join(temp_dir, zip_filename)
         
-        dicom_base_url = f"http://10.2.0.10/{archive_path}/"
+        dicom_base_url = f"http://{SERVER_IP}/{archive_path}/"
         print(f"DEBUG: Base URL: {dicom_base_url}")
         print(f"DEBUG: Total de imagens encontradas: {len(images)}")
         
@@ -1389,7 +1390,7 @@ def download_imagens(study_pk):
                 
                 try:
                     # Baixar arquivo DICOM via HTTP com autenticação básica
-                    auth = ('suporte_image', '$apr1$PefDLttp$C.smY/9DZ9PB4ZYaRmria0')  # Credenciais diretas para o Nginx
+                    auth = (f'{NGINX_AUTH_USER}', f'{NGINX_AUTH_PASSWORD}')  # Credenciais diretas para o Nginx
                     response = requests.get(dicom_url, auth=auth, timeout=10)
                     print(f"DEBUG: Status da resposta: {response.status_code}")
                     if response.status_code == 200:
