@@ -136,7 +136,8 @@ def relatorio():
             SELECT p.pat_id, split_part(p.pat_name, '^', 1) as pat_name,
                    COUNT(DISTINCT st.pk) as qtd_estudos,
                    ROUND(COALESCE(SUM(f.file_size), 0) / 1024 / 1024, 2) as qtd_mb,
-                   array_agg(DISTINCT f2.dirpath) as diretorios
+                   array_agg(DISTINCT f2.dirpath) as diretorios,
+                   array_agg(DISTINCT CONCAT('http://10.2.0.10/', SPLIT_PART(f2.dirpath, E'\\\\', array_length(string_to_array(f2.dirpath, E'\\\\'), 1)), '/', f.filepath)) as caminhos_completos
             FROM study st
             JOIN patient p ON st.patient_fk = p.pk
             JOIN series sr ON sr.study_fk = st.pk
@@ -154,7 +155,8 @@ def relatorio():
             SELECT p.pat_id, split_part(p.pat_name, '^', 1) as pat_name,
                    COUNT(DISTINCT st.pk) as qtd_estudos,
                    ROUND(COALESCE(SUM(f.file_size), 0) / 1024 / 1024, 2) as qtd_mb,
-                   array_agg(DISTINCT f2.dirpath) as diretorios
+                   array_agg(DISTINCT f2.dirpath) as diretorios,
+                   array_agg(DISTINCT CONCAT('http://10.2.0.10/', SPLIT_PART(f2.dirpath, E'\\\\', array_length(string_to_array(f2.dirpath, E'\\\\'), 1)), '/', f.filepath)) as caminhos_completos
             FROM study st
             JOIN patient p ON st.patient_fk = p.pk
             JOIN series sr ON sr.study_fk = st.pk
@@ -179,7 +181,8 @@ def relatorio():
             'pat_name': row[1],
             'qtd_estudos': row[2],
             'qtd_mb': row[3],
-            'diretorios': row[4]
+            'diretorios': row[4],
+            'caminhos_completos': row[5] if len(row) > 5 else []
         }
         for row in cur.fetchall()
     ]
@@ -417,7 +420,9 @@ def generate_selected_pdf(study_uid):
                END AS idade,
                to_char(s.study_datetime, 'DD/MM/YYYY HH24:MI:SS') as study_datetime,
                COALESCE(sr.institution, '') as institution,
-               p.pat_sex
+               p.pat_sex,
+               CASE WHEN s.ref_physician IS NULL THEN '' else s.ref_physician end as ref_physician,
+               CASE WHEN s.study_desc IS NULL THEN '' else s.study_desc end as study_desc
         FROM patient p
         JOIN study s ON s.patient_fk = p.pk
         JOIN series sr ON sr.study_fk = s.pk
@@ -429,8 +434,9 @@ def generate_selected_pdf(study_uid):
     patient_data = cur.fetchone()
     company_address = "Endereço não cadastrado"
     company_logo = None
+    logo_path = "static/logo.jpg"  # Logo padrão
 
-    if patient_data or patient_data[5] == '': 
+    if patient_data and patient_data[5] != '': 
         cur.execute(
             "SELECT organization, address, logo_path FROM organizations_app WHERE LOWER(presentation) = LOWER(%s)",
             (patient_data[5],)
@@ -467,7 +473,24 @@ def generate_selected_pdf(study_uid):
     for file_path in selected_files:
         try:
             dicom_url = f"{dicom_base_url}{file_path}"
-            response = requests.get(dicom_url, timeout=10)
+            print(f"DEBUG: Tentando acessar URL: {dicom_url}")
+            
+            # Testar diferentes formatos de autenticação HTTP básica
+            # Formato 1: Credenciais diretas
+            auth = ('suporte_image', '$apr1$PefDLttp$C.smY/9DZ9PB4ZYaRmria0')
+            print(f"DEBUG: Usando autenticação: {auth[0]}")
+            
+            response = requests.get(dicom_url, auth=auth, timeout=10)
+            print(f"DEBUG: Status da resposta: {response.status_code}")
+            print(f"DEBUG: Headers da resposta: {dict(response.headers)}")
+            
+            if response.status_code == 401:
+                print("DEBUG: Erro 401 - Tentando com credenciais alternativas")
+                # Tentar com senha em texto plano
+                auth_alt = ('suporte_image', 'suporte123')
+                response = requests.get(dicom_url, auth=auth_alt, timeout=10)
+                print(f"DEBUG: Status com credenciais alternativas: {response.status_code}")
+            
             if response.status_code != 200:
                 print(f"Erro ao baixar {file_path}: {response.status_code}")
                 continue
@@ -530,14 +553,18 @@ def generate_selected_pdf(study_uid):
             c.drawString(170, height - 50, f"Nasc:")
             c.drawString(260, height - 50, f"Sexo:")
             c.drawString(310, height - 50, f"Idade:")
+            c.drawString(310, height - 65, f"Solicitante:")
             c.drawString(170, height - 65, f"Estudo:")
+            c.drawString(170, height - 80, f"Procedimento:")
             c.setFont("Times-Roman", 10)
-            c.drawString(185, height - 20, f"{patient_data[0]}")
-            c.drawString(210, height - 35, f"{patient_data[1]}")
+            c.drawString(186, height - 20, f"{patient_data[0]}")
+            c.drawString(211, height - 35, f"{patient_data[1]}")
             c.drawString(195, height - 50, f"{patient_data[2]}")
-            c.drawString(285, height - 50, f"{patient_data[6]}")
             c.drawString(340, height - 50, f"{patient_data[3]}")
             c.drawString(205, height - 65, f"{patient_data[4]}")
+            c.drawString(285, height - 50, f"{patient_data[6]}")
+            c.drawString(360, height - 65, f"{patient_data[7]}")
+            c.drawString(235, height - 80, f"{patient_data[8]}")
             logo_to_use = company_logo if company_logo and os.path.exists(company_logo) else logo_path
             c.drawImage(logo_to_use, width - 585, height - 60, width=150, height=50)
             c.setFont("Times-Roman", 9)
@@ -701,7 +728,21 @@ def thumbnail():
     thumb_path = os.path.join(thumb_dir, thumb_name)
     if not os.path.exists(thumb_path):
         try:
-            response = requests.get(dicom_url, timeout=10)
+            print(f"DEBUG THUMBNAIL: Tentando acessar URL: {dicom_url}")
+            
+            # Testar diferentes formatos de autenticação HTTP básica
+            auth = ('suporte_image', '$apr1$PefDLttp$C.smY/9DZ9PB4ZYaRmria0')
+            print(f"DEBUG THUMBNAIL: Usando autenticação: {auth[0]}")
+            
+            response = requests.get(dicom_url, auth=auth, timeout=10)
+            print(f"DEBUG THUMBNAIL: Status da resposta: {response.status_code}")
+            
+            if response.status_code == 401:
+                print("DEBUG THUMBNAIL: Erro 401 - Tentando com credenciais alternativas")
+                auth_alt = ('suporte_image', 'suporte123')
+                response = requests.get(dicom_url, auth=auth_alt, timeout=10)
+                print(f"DEBUG THUMBNAIL: Status com credenciais alternativas: {response.status_code}")
+            
             if response.status_code != 200:
                 return "Erro ao baixar DICOM", 500
             ds = pydicom.dcmread(BytesIO(response.content))

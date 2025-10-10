@@ -8,12 +8,12 @@
 }
 
 .navbar.bg-custom {
-    background-color: #8680c7 !important;
+    background-color: #183166 !important;
 }
 
 
 .bg-custom {
-    background-color:  #8680c7!important;
+    background-color:  #183166!important;
 }
 
 html,
@@ -23,7 +23,23 @@ body {
     display: flex;
     flex-direction: column;
 }
+.container-pesquisa {
+    font-size: 12px;
+}
 
+.container {
+    font-size: 12px;
+}
+
+.form-control {
+    font-size: 12px;
+}
+.form-select {
+    font-size: 12px;
+}
+.btn {
+    font-size: 12px;
+}
 .dropdown-item i {
   width: 20px;
   text-align: center;
@@ -80,7 +96,7 @@ body {
 
 .btn-action {
     padding: 4px 8px;
-    font-size: 12px;
+    font-size: 11px;
     margin-right: 5px;
     display: inline-block;
 }
@@ -186,12 +202,12 @@ body {
 }
 .table th:nth-child(12),
 .table td:nth-child(12) {
-    width: 40px;
+    width: 30px;
     text-align: center;
 }
 .table th:nth-child(13),
 .table td:nth-child(12) {
-    width: 30px;
+    width: 35px;
     text-align: center;
 }
 
@@ -206,19 +222,20 @@ body {
 .pagination a {
     padding: 8px 12px;
     text-decoration: none;
-    color: #8680c7;
+    color: #183166;
+    font-size: 12px;
     border: 1px solid #dee2e6;
     border-radius: 5px;
 }
 
 .pagination a.active {
-    background-color: #8680c7;
+    background-color: #183166;
     color: white;
-    border-color: #8680c7;
+    border-color: #183166;
 }
 
 .pagination a:hover:not(.disabled) {
-    background-color: #e9ecef;
+    background-color: #79a8d8;
 }
 
 .pagination a.disabled {

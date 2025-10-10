@@ -1,5 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Relatório de Armazenamento PACS{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar tooltips do Bootstrap
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <h2 class="mb-4">Relatório de Armazenamento PACS</h2>
@@ -62,7 +75,11 @@
                             <td>{{ paciente.qtd_mb }}</td>
                             <td>
                                 {% for dir in paciente.diretorios %}
-                                    <span class="badge bg-info">{{ dir }}</span>
+                                    <span class="badge bg-info" 
+                                          title="{% for caminho in paciente.caminhos_completos %}{{ caminho }}&#10;{% endfor %}"
+                                          data-bs-toggle="tooltip" 
+                                          data-bs-placement="top"
+                                          data-bs-html="true">{{ dir }}</span>
                                 {% endfor %}
                             </td>
                         </tr>

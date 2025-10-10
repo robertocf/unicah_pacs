@@ -10,7 +10,7 @@ body {
 
 .left-side {
   width: 50%;
-  background: #8680c7;
+  background: #183166;
   color: white;
   display: flex;
   flex-direction: column;
@@ -43,7 +43,7 @@ body {
 }
 
 .logo {
-  width: 200px;
+  width: 350px;
   margin: 20px 0;
 }
 
@@ -63,7 +63,7 @@ input {
 }
 
 button[type="submit"] {
-  background: #8680c7;
+  background: #183166;
   color: white;
   border: none;
   padding: 10px;

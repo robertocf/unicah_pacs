@@ -28,63 +28,66 @@
             <div class="col-12 main-content">
                 <div class="search-container">
                     <form method="POST" class="row g-3">
-                        <div class="col-md-1">
-                            <label for="id_paciente" class="form-label">ID</label>
-                            <input type="text" class="form-control" id="id_paciente" name="id_paciente"
-                                value="{{ request.form.get('id_paciente', '') }}">
-                        </div>
-                        <div class="col-md-3">
-                            <label for="nome" class="form-label">Nome</label>
-                            <input type="text" class="form-control" id="nome" name="nome"
-                                value="{{ request.form.get('nome', '') }}">
-                        </div>
-                        <div class="col-md-2">
-                            <label for="sexo" class="form-label">Sexo</label>
-                            <select class="form-select" id="sexo" name="sexo">
-                                <option value="">Todos</option>
-                                <option value="M" {% if request.form.get('sexo')=='M' %}selected{% endif %}>
-                                    Masculino</option>
-                                <option value="F" {% if request.form.get('sexo')=='F' %}selected{% endif %}>Feminino
-                                </option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label for="data_atendimento" class="form-label">Data de Atendimento</label>
-                            <select class="form-select" id="data_atendimento" name="data_atendimento">
-                                <option value="all" {% if request.form.get('data_atendimento')=='all' %}selected{% endif
-                                    %}>Todas</option>
-                                <option value="today" {% if request.form.get('data_atendimento')=='today' %}selected{%
-                                    endif %}>Hoje</option>
-                                <option value="last3days" {% if request.form.get('data_atendimento')=='last3days'
-                                    %}selected{% endif %}>Últimos 3 dias</option>
-                                <option value="last30days" {% if request.form.get('data_atendimento')=='last30days'
-                                    %}selected{% endif %}>Últimos 30 dias</option>
-                            </select>
-                        </div>
-                        <div class="col-md-1">
-                            <label for="modalidade" class="form-label">Modalidade</label>
-                            <select class="form-select" id="modalidade" name="modalidade">
-                                <option value="all" {% if request.form.get('modalidade')=='all' %}selected{% endif %}>
-                                    Todas</option>
-                                <option value="US" {% if request.form.get('modalidade')=='US' %}selected{% endif %}>
-                                    US</option>
-                                <option value="CT" {% if request.form.get('modalidade')=='CT' %}selected{% endif %}>
-                                    CT</option>
-                                <option value="DX" {% if request.form.get('modalidade')=='DX' %}selected{% endif %}>
-                                    DX</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label for="per_page" class="form-label">Itens por página</label>
-                            <select class="form-select" id="per_page" name="per_page" onchange="this.form.submit()">
-                                {% for option in per_page_options %}
-                                <option value="{{ option }}" {% if option==per_page %}selected{% endif %}>{{ option
-                                    }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-1 text-end align-self-end">
-                            <button type="submit" class="btn btn-primary">Pesquisar</button>
+                        <div class="container-pesquisa row g-3">
+                            <div class="col-md-1">
+                                <label for="id_paciente" class="form-label">ID</label>
+                                <input type="text" class="form-control" id="id_paciente" name="id_paciente"
+                                    value="{{ request.form.get('id_paciente', '') }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="nome" class="form-label">Nome</label>
+                                <input type="text" class="form-control" id="nome" name="nome"
+                                    value="{{ request.form.get('nome', '') }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="sexo" class="form-label">Sexo</label>
+                                <select class="form-select" id="sexo" name="sexo">
+                                    <option value="">Todos</option>
+                                    <option value="M" {% if request.form.get('sexo')=='M' %}selected{% endif %}>
+                                        Masculino</option>
+                                    <option value="F" {% if request.form.get('sexo')=='F' %}selected{% endif %}>Feminino
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="data_atendimento" class="form-label">Data de Atendimento</label>
+                                <select class="form-select" id="data_atendimento" name="data_atendimento">
+                                    <option value="all" {% if request.form.get('data_atendimento')=='all' %}selected{%
+                                        endif %}>Todas</option>
+                                    <option value="today" {% if request.form.get('data_atendimento')=='today'
+                                        %}selected{% endif %}>Hoje</option>
+                                    <option value="last3days" {% if request.form.get('data_atendimento')=='last3days'
+                                        %}selected{% endif %}>Últimos 3 dias</option>
+                                    <option value="last30days" {% if request.form.get('data_atendimento')=='last30days'
+                                        %}selected{% endif %}>Últimos 30 dias</option>
+                                </select>
+                            </div>
+                            <div class="col-md-1">
+                                <label for="modalidade" class="form-label">Modalidade</label>
+                                <select class="form-select" id="modalidade" name="modalidade">
+                                    <option value="all" {% if request.form.get('modalidade')=='all' %}selected{% endif
+                                        %}>
+                                        Todas</option>
+                                    <option value="US" {% if request.form.get('modalidade')=='US' %}selected{% endif %}>
+                                        US</option>
+                                    <option value="CT" {% if request.form.get('modalidade')=='CT' %}selected{% endif %}>
+                                        CT</option>
+                                    <option value="DX" {% if request.form.get('modalidade')=='DX' %}selected{% endif %}>
+                                        DX</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="per_page" class="form-label">Itens por página</label>
+                                <select class="form-select" id="per_page" name="per_page" onchange="this.form.submit()">
+                                    {% for option in per_page_options %}
+                                    <option value="{{ option }}" {% if option==per_page %}selected{% endif %}>{{ option
+                                        }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-1 text-end align-self-end">
+                                <button type="submit" class="btn btn-primary">Pesquisar</button>
+                            </div>
                         </div>
                     </form>
                     <div id="alert-container" class="mt-3"></div>
@@ -144,11 +147,14 @@
                                             </button>
                                             <ul class="dropdown-menu"
                                                 aria-labelledby="dropdownMenuButton-{{ patient[0] }}">
-                                                <!-- <li><a class="dropdown-item" href="#"
-                                                        onclick="abrirModal('{{ patient[7] }}')"><i
-                                                            class="fas fa-print me-2"></i>Imprimir</a></li> -->
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirViewer('{{ patient[7] }}')"><i
+                                                            class="fa-solid fa-tv me-2"></i>Carregar local</a></li>
+                                                <li><a class="dropdown-item" href="#"
+                                                        onclick="abrirModal('{{ patient[7] }}')"><i
+                                                            class="fas fa-print me-2"></i>Imprimir</a></li>
+                                                <li><a class="dropdown-item" href="#"
+                                                        onclick="abrirViewerWeb('{{ patient[7] }}')"><i
                                                             class="fas fa-eye me-2"></i>Visualizar</a></li>
                                                 {% if user_role == 'admin' %}
                                                 <li><a class="dropdown-item" href="#"
@@ -396,13 +402,31 @@
             }
         }
 
-        // Função para abrir o visualizador
+        // Função para abrir o visualizador Local com weasis
         window.abrirViewer = function (studyPk) {
             fetch(`/teste_study_iuid/${studyPk}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.study_iuid) {
                         const url = `weasis://?$dicom:get -w "http://10.2.0.10:8080/weasis-pacs-connector/manifest?studyUID=${data.study_iuid}"`;
+                        window.location.href = url;
+                    } else {
+                        alert('Erro ao obter o Study IUID');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao acessar o visualizador');
+                });
+        }
+
+        // Função para abrir o visualizador web com weasis
+        window.abrirViewerWeb = function (studyPk) {
+            fetch(`/teste_study_iuid/${studyPk}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.study_iuid) {
+                        const url = `jnlp://10.2.0.10:8080/weasis-pacs-connector/viewer?studyUID=${data.study_iuid}`;
                         window.location.href = url;
                     } else {
                         alert('Erro ao obter o Study IUID');

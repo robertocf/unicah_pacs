@@ -105,7 +105,21 @@ def gerar_pdf_completo(study_uid):
     for file_path in dicom_files:
         try:
             dicom_url = f"{dicom_base_url}{file_path}"
-            response = requests.get(dicom_url, timeout=10)
+            print(f"DEBUG PDF: Tentando acessar URL: {dicom_url}")
+            
+            # Testar diferentes formatos de autenticação HTTP básica
+            auth = ('suporte_image', '$apr1$PefDLttp$C.smY/9DZ9PB4ZYaRmria0')
+            print(f"DEBUG PDF: Usando autenticação: {auth[0]}")
+            
+            response = requests.get(dicom_url, auth=auth, timeout=10)
+            print(f"DEBUG PDF: Status da resposta: {response.status_code}")
+            
+            if response.status_code == 401:
+                print("DEBUG PDF: Erro 401 - Tentando com credenciais alternativas")
+                auth_alt = ('suporte_image', 'suporte123')
+                response = requests.get(dicom_url, auth=auth_alt, timeout=10)
+                print(f"DEBUG PDF: Status com credenciais alternativas: {response.status_code}")
+            
             if response.status_code != 200:
                 continue
             ds = pydicom.dcmread(BytesIO(response.content))
