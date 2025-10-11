@@ -414,7 +414,7 @@ def generate_selected_pdf(study_uid):
     patient_data = cur.fetchone()
     company_address = "Endereço não cadastrado"
     company_logo = None
-    logo_path = "static/logo.jpg"  # Logo padrão
+    logo_path = "static/logo_unicah.png"  # Logo padrão
 
     if patient_data and patient_data[5] != '': 
         cur.execute(
