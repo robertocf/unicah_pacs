@@ -603,7 +603,7 @@ def editar_paciente():
         pat_sex = '""'
     else:
         pat_sex = data["pat_sex"]      
-    hl7_msg = f"""MSH|^~\\&|SISTEMA_ORIGEM|HOSPITAL_X|DCM4CHEE|DCM4CHEE|{datetime.now().strftime('%Y%m%d%H%M%S')}||ADT^A08|MSG_{pat_id}|P|2.3
+    hl7_msg = f"""MSH|^~\\&|SISTEMA_ORIGEM|CLINICA ARTUS|DCM4CHEE|DCM4CHEE|{datetime.now().strftime('%Y%m%d%H%M%S')}||ADT^A08|MSG_{pat_id}|P|2.3
 EVN|A08|{datetime.now().strftime('%Y%m%d%H%M%S')}
 PID|1||{pat_id}^^^||{pat_name}^^^||{pat_birthdate.replace('-','')}|{pat_sex}||"""
     print(hl7_msg)
@@ -658,12 +658,32 @@ def editar_estudo():
 def get_study_iuid(study_pk):
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT study_iuid FROM study WHERE pk = %s", (study_pk,))
-    result = cur.fetchone()
-    conn.close()
-    if result:
-        return jsonify({"study_iuid": result[0]})
-    return jsonify({"error": "Study not found"}), 404
+    try:
+        # Primeiro, faz o SELECT
+        cur.execute("SELECT study_iuid FROM study WHERE pk = %s", (study_pk,))
+        result = cur.fetchone()
+        if not result:
+            return jsonify({"error": "Study not found"}), 404
+        study_iuid = result[0]
+        # Faz o UPDATE
+        cur.execute(
+            """
+            UPDATE study
+            SET study_custom1 = 'V',
+                study_custom2 = to_char(NOW() - INTERVAL '1 hour', 'DD/MM/YYYY HH24:MI:SS'),
+                study_custom3 = %s
+            WHERE pk = %s
+            """,
+            (current_user.name, study_pk)
+        )
+        conn.commit()
+        return jsonify({"study_iuid": study_iuid})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 @app.route("/thumbnail")
 @login_required

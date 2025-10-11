@@ -8,12 +8,12 @@
 }
 
 .navbar.bg-custom {
-    background-color: #183166 !important;
+    background-color: #0d1b49 !important;
 }
 
 
 .bg-custom {
-    background-color:  #183166!important;
+    background-color:  #0d1b49!important;
 }
 
 html,
@@ -93,6 +93,12 @@ body {
     padding: 2px 8px;
     border-radius: 10px;
 }
+.status-blue {
+    background-color: #007bff;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
 
 .btn-action {
     padding: 4px 8px;
@@ -148,19 +154,19 @@ body {
 
 .table th:nth-child(3),
 .table td:nth-child(3) {
-    width: 240px;
+    width: 220px;
     text-align: left;
 }
 
 .table th:nth-child(4),
 .table td:nth-child(4) {
-    width: 55px;
+    width: 57px;
     text-align: center;
 }
 
 .table th:nth-child(5),
 .table td:nth-child(5) {
-    width: 80px;
+    width: 85px;
     text-align: center;
 }
 
@@ -190,7 +196,7 @@ body {
 
 .table th:nth-child(10),
 .table td:nth-child(10) {
-    width: 90px;
+    width: 93px;
     text-align: center;
     
 }
@@ -207,7 +213,7 @@ body {
 }
 .table th:nth-child(13),
 .table td:nth-child(12) {
-    width: 35px;
+    width: 38px;
     text-align: center;
 }
 
@@ -222,16 +228,16 @@ body {
 .pagination a {
     padding: 8px 12px;
     text-decoration: none;
-    color: #183166;
+    color: #0d1b49;
     font-size: 12px;
     border: 1px solid #dee2e6;
     border-radius: 5px;
 }
 
 .pagination a.active {
-    background-color: #183166;
+    background-color: #0d1b49;
     color: white;
-    border-color: #183166;
+    border-color: #0d1b49;
 }
 
 .pagination a:hover:not(.disabled) {

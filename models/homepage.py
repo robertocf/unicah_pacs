@@ -1,5 +1,6 @@
 from flask import request, render_template
 from datetime import datetime
+from config import SERVER_IP  # ajuste se o import do config for diferente
 from db import get_db_connection  # ajuste se o import da conexão for diferente
 
 def carregar_homepage(user_name, user_id, user_role=None, alert=None):  
@@ -62,7 +63,7 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
                     WHEN s.study_desc IS NULL THEN '' else s.study_desc end as study_desc,
                    s.pk,
                    to_char(s.study_datetime, 'DD/MM/YYYY HH24:MI:SS') as study_datetime,
-                   CASE s.study_custom1 WHEN 'I' THEN 'Impresso' ELSE 'Pronto' END AS custom,
+                   CASE s.study_custom1 WHEN 'I' THEN 'Impresso' WHEN 'V' THEN 'Visual' ELSE 'Pronto' END AS custom,
                    s.num_instances,
                    s.pk,
                    CASE WHEN sr.institution IS NULL THEN '' else sr.institution END AS institution, 
@@ -98,7 +99,7 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
                     WHEN s.study_desc IS NULL THEN '' else s.study_desc end as study_desc,
                    s.pk,
                    to_char(s.study_datetime, 'DD/MM/YYYY HH24:MI:SS') as study_datetime,
-                   CASE s.study_custom1 WHEN 'I' THEN 'Impresso' ELSE 'Pronto' END AS custom,
+                   CASE s.study_custom1 WHEN 'I' THEN 'Impresso' WHEN 'V' THEN 'Visual' ELSE 'Pronto' END AS custom,
                    s.num_instances,
                    s.pk,
                    CASE WHEN sr.institution IS NULL THEN '' else sr.institution END AS institution, 
@@ -216,6 +217,7 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
 
     return render_template(
         "homepage.html",
+        SERVER_IP=SERVER_IP,
         patients=patients,
         page=page,
         per_page=per_page_param,  # Usar o valor original para o dropdown

@@ -133,6 +133,8 @@
                                         <span class="status-green">{{ patient[9] }}</span>
                                         {% elif patient[9] == 'Pronto' %}
                                         <span class="status-orange">{{ patient[9] }}</span>
+                                        {% elif patient[9] == 'Visual' %}
+                                        <span class="status-blue">{{ patient[9] }}</span>
                                         {% else %}
                                         <span class="status-red">{{ patient[9] }}</span>
                                         {% endif %}
@@ -408,7 +410,7 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.study_iuid) {
-                        const url = `weasis://?$dicom:get -w "http://10.2.0.10:8080/weasis-pacs-connector/manifest?studyUID=${data.study_iuid}"`;
+                        const url = `weasis://?$dicom:get -w "http://{{SERVER_IP}}:8080/weasis-pacs-connector/manifest?studyUID=${data.study_iuid}"`;
                         window.location.href = url;
                     } else {
                         alert('Erro ao obter o Study IUID');
@@ -426,7 +428,7 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.study_iuid) {
-                        const url = `jnlp://10.2.0.10:8080/weasis-pacs-connector/viewer?studyUID=${data.study_iuid}`;
+                        const url = `jnlp://{{SERVER_IP}}:8080/weasis-pacs-connector/viewer?studyUID=${data.study_iuid}`;
                         window.location.href = url;
                     } else {
                         alert('Erro ao obter o Study IUID');
