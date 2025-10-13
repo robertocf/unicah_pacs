@@ -55,6 +55,13 @@ form {
   max-width: 300px;
 }
 
+.login-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
 input {
   padding: 10px;
   border: none;
@@ -82,4 +89,18 @@ button[type="submit"] {
   color: red;
   font-size: 14px;
   text-align: center;
+}
+
+/* Correção para o modal aparecer no centro da tela */
+.modal {
+  z-index: 1050;
+}
+
+.modal-dialog {
+  margin: 1.75rem auto;
+  max-width: 500px;
+}
+
+.modal-backdrop {
+  z-index: 1040;
 }

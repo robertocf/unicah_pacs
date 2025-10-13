@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Gerencial - PACS Unicah{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar tooltips do Bootstrap
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Definir data padrão como hoje se não houver filtros aplicados
+    const dataInicio = document.getElementById('data_inicio');
+    const dataFim = document.getElementById('data_fim');
+    
+    // Se não há valores definidos, definir data padrão
+    if (!dataInicio.value && !dataFim.value) {
+        const hoje = new Date();
+        const umaSemanaAtras = new Date(hoje.getTime() - 7 * 24 * 60 * 60 * 1000);
+        
+        dataInicio.value = umaSemanaAtras.toISOString().split('T')[0];
+        dataFim.value = hoje.toISOString().split('T')[0];
+    }
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Logs de Eventos</h2>
+    
+    <!-- Formulário de Pesquisa -->
+    <form class="row g-3 mb-4" method="POST" action="{{ url_for('gerencial_search') }}">
+        <div class="col-md-3">
+            <label for="data_inicio" class="form-label">Data Início</label>
+            <input type="date" class="form-control" id="data_inicio" name="data_inicio" 
+                   value="{{ request.form.get('data_inicio', '') }}">
+        </div>
+        <div class="col-md-3">
+            <label for="data_fim" class="form-label">Data Fim</label>
+            <input type="date" class="form-control" id="data_fim" name="data_fim" 
+                   value="{{ request.form.get('data_fim', '') }}">
+        </div>
+        <div class="col-md-3">
+            <label for="paciente_id" class="form-label">ID do Paciente</label>
+            <input type="text" class="form-control" id="paciente_id" name="paciente_id" 
+                   placeholder="Digite o ID do paciente" 
+                   value="{{ request.form.get('paciente_id', '') }}">
+        </div>
+        <div class="col-md-3">
+            <label for="nome_paciente" class="form-label">Nome do Paciente</label>
+            <input type="text" class="form-control" id="nome_paciente" name="nome_paciente" 
+                   placeholder="Digite o nome do paciente" 
+                   value="{{ request.form.get('nome_paciente', '') }}">
+        </div>
+        <div class="col-md-3">
+            <label for="tipo_acao" class="form-label">Tipo de Ação</label>
+            <select class="form-select" id="tipo_acao" name="tipo_acao">
+                <option value="">Todas as ações</option>
+                <option value="DELETE" {% if request.form.get('tipo_acao') == 'DELETE' %}selected{% endif %}>DELETE</option>
+                <option value="UPDATE" {% if request.form.get('tipo_acao') == 'UPDATE' %}selected{% endif %}>UPDATE</option>
+                <option value="INSERT" {% if request.form.get('tipo_acao') == 'INSERT' %}selected{% endif %}>INSERT</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="empresa_id" class="form-label">ID da Empresa</label>
+            <input type="text" class="form-control" id="empresa_id" name="empresa_id" 
+                   placeholder="Digite o ID da empresa" 
+                   value="{{ request.form.get('empresa_id', '') }}">
+        </div>
+        <div class="col-md-3">
+            <label for="usuario_id" class="form-label">ID do Usuário</label>
+            <input type="text" class="form-control" id="usuario_id" name="usuario_id" 
+                   placeholder="Digite o ID do usuário" 
+                   value="{{ request.form.get('usuario_id', '') }}">
+        </div>
+        <div class="col-md-3 align-self-end">
+            <button type="submit" class="btn btn-primary">Pesquisar</button>
+        </div>
+    </form>
+
+    <!-- Tabela de Resultados -->
+    {% if logs %}
+    <div class="card">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="card-title mb-0">Resultados da Pesquisa</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th style="width: 12%">Data/Hora</th>
+                            <th style="width: 8%">Empresa ID</th>
+                            <th style="width: 8%">Usuário ID</th>
+                            <th style="width: 8%">Tipo Ação</th>
+                            <th style="width: 10%">Paciente ID</th>
+                            <th style="width: 20%">Nome Paciente</th>
+                            <th style="width: 10%">Modalidade</th>
+                            <th style="width: 10%">Data Estudo</th>
+                            <th style="width: 14%">Contexto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td>{{ log.data_hora.strftime('%d/%m/%Y %H:%M:%S') if log.data_hora else '-' }}</td>
+                            <td>{{ log.empresa_id or '-' }}</td>
+                            <td>{{ log.usuario_id or '-' }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if log.tipo_acao == 'DELETE' %}bg-danger
+                                    {% elif log.tipo_acao == 'UPDATE' %}bg-warning text-dark
+                                    {% elif log.tipo_acao == 'INSERT' %}bg-success
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ log.tipo_acao or '-' }}
+                                </span>
+                            </td>
+                            <td>{{ log.paciente_id or '-' }}</td>
+                            <td>{{ log.nome_paciente or '-' }}</td>
+                            <td>{{ log.modalidade_estudo or '-' }}</td>
+                            <td>{{ log.data_estudo.strftime('%d/%m/%Y') if log.data_estudo else '-' }}</td>
+                            <td>
+                                <span class="text-truncate d-inline-block" style="max-width: 150px;" 
+                                      title="{{ log.contexto or '' }}"
+                                      data-bs-toggle="tooltip" 
+                                      data-bs-placement="top">
+                                    {{ log.contexto or '-' }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Informações de Total -->
+            <div class="mt-3">
+                <p class="text-muted mb-0">Total de registros encontrados: {{ logs|length }}</p>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="card-title mb-0">Logs de Eventos</h5>
+        </div>
+        <div class="card-body text-center py-5">
+            <i class="fas fa-search fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">Nenhum registro encontrado</h5>
+            <p class="text-muted">Use os filtros acima para pesquisar logs de eventos.</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

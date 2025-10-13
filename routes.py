@@ -1466,3 +1466,102 @@ def download_imagens(study_pk):
         cur.close()
         conn.close()
         return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+
+# Rotas do módulo Gerencial
+@app.route('/gerencial', methods=['GET'])
+@login_required
+@admin_required
+def gerencial():
+    """Página principal do módulo gerencial com logs de eventos"""
+    return render_template('gerencial.html', logs=None)
+
+
+@app.route('/gerencial/search', methods=['POST'])
+@login_required
+@admin_required
+def gerencial_search():
+    """Rota para pesquisar logs de eventos na tabela log_registros"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Obter parâmetros do formulário
+        data_inicio = request.form.get('data_inicio')
+        data_fim = request.form.get('data_fim')
+        paciente_id = request.form.get('paciente_id')
+        nome_paciente = request.form.get('nome_paciente')
+        tipo_acao = request.form.get('tipo_acao')
+        empresa_id = request.form.get('empresa_id')
+        usuario_id = request.form.get('usuario_id')
+        
+        # Construir query SQL dinamicamente
+        query = """
+            SELECT data_hora, empresa_id, usuario_id, tipo_acao, paciente_id, 
+                   nome_paciente, modalidade_estudo, data_estudo, contexto 
+            FROM log_registros 
+            WHERE 1=1
+        """
+        params = []
+        
+        # Adicionar filtros conforme os parâmetros fornecidos
+        if data_inicio:
+            query += " AND DATE(data_hora) >= %s"
+            params.append(data_inicio)
+            
+        if data_fim:
+            query += " AND DATE(data_hora) <= %s"
+            params.append(data_fim)
+            
+        if paciente_id:
+            query += " AND paciente_id LIKE %s"
+            params.append(f"%{paciente_id}%")
+            
+        if nome_paciente:
+            query += " AND nome_paciente LIKE %s"
+            params.append(f"%{nome_paciente}%")
+            
+        if tipo_acao:
+            query += " AND tipo_acao = %s"
+            params.append(tipo_acao)
+            
+        if empresa_id:
+            query += " AND empresa_id LIKE %s"
+            params.append(f"%{empresa_id}%")
+            
+        if usuario_id:
+            query += " AND usuario_id LIKE %s"
+            params.append(f"%{usuario_id}%")
+        
+        # Ordenar por data mais recente primeiro
+        query += " ORDER BY data_hora DESC LIMIT 1000"
+        
+        # Executar query
+        cur.execute(query, params)
+        results = cur.fetchall()
+        
+        # Converter resultados para objetos com atributos nomeados
+        logs = []
+        for row in results:
+            log = type('Log', (), {
+                'data_hora': row[0],
+                'empresa_id': row[1],
+                'usuario_id': row[2],
+                'tipo_acao': row[3],
+                'paciente_id': row[4],
+                'nome_paciente': row[5],
+                'modalidade_estudo': row[6],
+                'data_estudo': row[7],
+                'contexto': row[8]
+            })()
+            logs.append(log)
+        
+        cur.close()
+        conn.close()
+        
+        return render_template('gerencial.html', logs=logs)
+        
+    except Exception as e:
+        print(f"Erro ao pesquisar logs: {e}")
+        flash(f'Erro ao pesquisar logs: {str(e)}', 'error')
+        return render_template('gerencial.html', logs=None)

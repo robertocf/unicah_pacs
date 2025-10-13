@@ -141,7 +141,7 @@ def gerar_pdf_completo(study_uid):
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
-    logo_path = "static/logo.jpg"
+    logo_path = "static/logo_unicah.png"
     layout = request.args.get('layout', '2x3')
     if layout == "1x1":
         top_margin = 610
