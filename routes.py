@@ -26,6 +26,8 @@ import tempfile
 import shutil
 from config import app, db, login_manager, SERVER_IP, NGINX_AUTH_PASSWORD, NGINX_AUTH_USER
 from models.Users import User
+from services.disk_reaming import get_free_space_bytes, get_average_daily_usage_bytes, REPOSITORY_PATH, DAYS_TO_AVERAGE, format_bytes
+from services.storage_stats import get_storage_stats
 
 
 @app.route('/relatorios', methods=['GET'])
@@ -833,7 +835,10 @@ GROUP BY
     cur.close()
     conn.close()
 
-    return render_template('armazenamento.html', directories=directories)
+    # Métricas gerais de armazenamento
+    storage_stats = get_storage_stats()
+
+    return render_template('armazenamento.html', directories=directories, storage_stats=storage_stats)
 
 @app.route('/configuracoes/armazenamento/salvar', methods=['POST'])
 @login_required
