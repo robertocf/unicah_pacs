@@ -365,12 +365,12 @@ def deletar_paciente():
     pat_sex = data["pat_sex"]
     if pat_birthdate == "None":
         pat_birthdate = ""
-    hl7_msg = f"""MSH|^~\\&|SISTEMA_ORIGEM|HOSPITAL_X|DCM4CHEE|DCM4CHEE|{datetime.now().strftime('%Y%m%d%H%M%S')}||ADT^A23|MSG_{pat_id}|P|2.3
+    hl7_msg = f"""MSH|^~\\&|SISTEMA_ORIGEM|CLINICA ARTUS|DCM4CHEE|DCM4CHEE|{datetime.now().strftime('%Y%m%d%H%M%S')}||ADT^A23|MSG_{pat_id}|P|2.3
 EVN|A23|{datetime.now().strftime('%Y%m%d%H%M%S')}
 PID|1||{pat_id}^^^||{pat_name}^^^||{pat_birthdate.replace('-','')}|{pat_sex}||"""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect(("{SERVER_IP}", 6663))
+            s.connect((f"{SERVER_IP}", 6663))
             s.sendall(b"\x0b" + hl7_msg.encode() + b"\x1c\x0d")
         return jsonify({"message": "Paciente excluído com sucesso!"}), 200
     except Exception as e:
@@ -497,12 +497,12 @@ def generate_selected_pdf(study_uid):
     layout = request.form.get("layout", "2x3")
     
     if layout == "1x1":
-        top_margin = 610
+        top_margin = 800
         images_per_page = 1
         rows = 1
         cols = 1
         row_spacing = 2
-        img_height = 500
+        img_height = 700
         img_width = 575
     elif layout == "2x2":
         top_margin = 450
@@ -611,7 +611,7 @@ PID|1||{pat_id}^^^||{pat_name}^^^||{pat_birthdate.replace('-','')}|{pat_sex}||""
     print(hl7_msg)
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect(("{SERVER_IP}", 6662))
+            s.connect((f"{SERVER_IP}", 6662))
             s.sendall(b"\x0b" + hl7_msg.encode() + b"\x1c\x0d")
         return jsonify({"message": "Paciente atualizado com sucesso!"}), 200
     except Exception as e:
