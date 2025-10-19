@@ -17,6 +17,10 @@
     .table-hover tbody tr:hover {
         cursor: pointer;
     }
+    .row-activated {
+        background-color: #fff3cd; /* amarelo claro para feedback */
+        transition: background-color 0.6s ease;
+    }
 </style>
 {% endblock %}
 
@@ -114,7 +118,7 @@
                             <tbody>
                                 {% if patients %}
                                 {% for patient in patients %}
-                                <tr>
+                                <tr data-study-pk="{{ patient[7] }}">
                                     <td class="expand-trigger" data-bs-toggle="collapse"
                                         data-bs-target="#expand-{{ patient[0] }}">
                                         <i class="fas fa-plus-circle text-success"></i>
@@ -367,6 +371,32 @@
         var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
             return new bootstrap.Dropdown(dropdownToggleEl);
         });
+
+        // Duplo clique na linha do paciente para carregar local
+        const tableBody = document.querySelector('.table-container table tbody');
+        if (tableBody) {
+            tableBody.querySelectorAll('tr').forEach(row => {
+                // Ignora linhas de detalhes expansíveis
+                if (row.classList.contains('expanded-row')) return;
+
+                row.addEventListener('dblclick', function (event) {
+                    const cell = event.target.closest('td');
+                    // Ignora o duplo clique no expansor (primeira coluna) e na coluna de ações (última)
+                    if (cell && (cell.cellIndex === 0 || cell.cellIndex === (row.cells.length - 1))) {
+                        return;
+                    }
+                    const studyPk = row.dataset.studyPk;
+                    if (studyPk) {
+                        // feedback imediato de duplo clique detectado
+                        row.classList.add('row-activated');
+                        showAlert('Abrindo visualizador…', 'info');
+                        setTimeout(() => row.classList.remove('row-activated'), 800);
+                        // aciona carregar local
+                        abrirViewer(studyPk);
+                    }
+                });
+            });
+        }
 
         // Função para abrir o modal de impressão
         window.abrirModal = function (studyPk) {
@@ -701,3 +731,29 @@
 </div>
 
 {% endblock %}
+
+        var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
+        var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
+            return new bootstrap.Dropdown(dropdownToggleEl);
+        });
+
+        // Duplo clique na linha do paciente para carregar local
+        const tableBody = document.querySelector('.table-container table tbody');
+        if (tableBody) {
+            tableBody.querySelectorAll('tr').forEach(row => {
+                // Ignora linhas de detalhes expansíveis
+                if (row.classList.contains('expanded-row')) return;
+
+                row.addEventListener('dblclick', function (event) {
+                    const cell = event.target.closest('td');
+                    // Ignora o duplo clique no expansor (primeira coluna) e na coluna de ações (última)
+                    if (cell && (cell.cellIndex === 0 || cell.cellIndex === (row.cells.length - 1))) {
+                        return;
+                    }
+                    const studyPk = row.dataset.studyPk;
+                    if (studyPk) {
+                        abrirViewer(studyPk);
+                    }
+                });
+            });
+        }
