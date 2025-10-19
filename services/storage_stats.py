@@ -82,7 +82,8 @@ def get_storage_stats():
                 usage = shutil.disk_usage(REPOSITORY_PATH)
                 capacity_mb = round(usage.total / 1024 / 1024, 2)
             if avg_mb_per_day_30 > 0:
-                days_remaining = int((free_bytes / 1024 / 1024) / avg_mb_per_day_30)
+                days_remaining = ("{:,}".format(int((free_bytes / 1024 / 1024) / avg_mb_per_day_30)).replace(",", "."))
+               
     except Exception:
         # Caso não seja possível obter dados do disco (ex.: caminho de rede), mantém None
         pass

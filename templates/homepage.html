@@ -464,7 +464,7 @@
         // Função para abrir o modal de edição
         window.abrirModalEditar = function (pat_id, pat_name, pat_birthdate, pat_sex) {
             document.getElementById('edit-pat_id').value = pat_id;
-            document.getElementById('edit-pat_name').value = pat_name;
+            document.getElementById('edit-pat_name').value = pat_name;         
             // Converte a data do formato dd/mm/yyyy para yyyy-mm-dd
             if (pat_birthdate && pat_birthdate !== 'None') {
                 const parts = pat_birthdate.split('/');
@@ -604,7 +604,6 @@
                 pat_birthdate: birthdate,
                 pat_sex: document.getElementById('edit-pat_sex').value
             };
-
             fetch('/editar_paciente', {
                 method: 'POST',
                 headers: {

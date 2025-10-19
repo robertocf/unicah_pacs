@@ -81,3 +81,9 @@ h2 {
     background-size: 40px 40px;
 }
 
+/* Ajuste da altura do rodapé apenas nesta página */
+.footer {
+    padding-top: 0.25rem !important; /* reduz um pouco a altura */
+    padding-bottom: 0.25rem !important;
+}
+

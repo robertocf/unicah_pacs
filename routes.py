@@ -14,6 +14,7 @@ from db import get_db_connection
 import os
 from datetime import datetime
 import hashlib
+import uuid
 import threading
 import socket
 from models.homepage import carregar_homepage
@@ -28,6 +29,7 @@ from config import app, db, login_manager, SERVER_IP, NGINX_AUTH_PASSWORD, NGINX
 from models.Users import User
 from services.disk_reaming import get_free_space_bytes, get_average_daily_usage_bytes, REPOSITORY_PATH, DAYS_TO_AVERAGE, format_bytes
 from services.storage_stats import get_storage_stats
+from services.audit_logs import insert_log_registro, _get_existing_patient_data, insert_login_log
 
 
 @app.route('/relatorios', methods=['GET'])
@@ -227,6 +229,20 @@ def iniciar_dicom_server():
 dicom_thread = threading.Thread(target=iniciar_dicom_server, daemon=True)
 dicom_thread.start()
 
+# --- Configuração de importação DICOM para PACS ---
+IMPORT_UPLOAD_DIR = os.path.join(tempfile.gettempdir(), 'dicom_imports')
+os.makedirs(IMPORT_UPLOAD_DIR, exist_ok=True)
+
+# Valores padrão para destino PACS (ajustáveis na UI)
+DEFAULT_PACS_HOST = SERVER_IP
+DEFAULT_PACS_PORT = 104
+DEFAULT_PACS_AET = 'ORTHANC'
+DEFAULT_LOCAL_AET = 'IMPORT-SCU'
+
+# Armazenamento em memória de sessões de upload
+IMPORT_SESSIONS = {}
+# --------------------------------------------------
+
 def salvar_no_banco(patient_id, study_uid, modality, path):
     filme_tipo = "Dry Film"
     filme_tamanho = "14x17"
@@ -268,6 +284,7 @@ def login():
             # Buscar o usuário pelo SQLAlchemy para fazer login
             user = User.query.filter_by(user_id=user_id).first()
             login_user(user)
+            insert_login_log(usuario_nome=(user.name or user.user_id))
             return redirect(url_for("homepage"))
         return render_template("login.html", erro="Usuário ou senha inválidos")
     return render_template("login.html")
@@ -354,6 +371,165 @@ def select_images(study_uid):
         dicom_base_url=dicom_base_url,
     )
 
+@app.route('/dicom/importar', methods=['GET'])
+@login_required
+@admin_required
+def importar_dicom_page():
+    return render_template(
+        'importar_dicom.html',
+        default_pacs_host=DEFAULT_PACS_HOST,
+        default_pacs_port=DEFAULT_PACS_PORT,
+        default_pacs_aet=DEFAULT_PACS_AET,
+        default_local_aet=DEFAULT_LOCAL_AET,
+    )
+
+@app.route('/dicom/importar/preview', methods=['POST'])
+@login_required
+@admin_required
+def importar_dicom_preview():
+    try:
+        files = request.files.getlist('files')
+        if not files:
+            return jsonify({'message': 'Nenhum arquivo enviado'}), 400
+        batch_id = uuid.uuid4().hex
+        batch_dir = os.path.join(IMPORT_UPLOAD_DIR, batch_id)
+        os.makedirs(batch_dir, exist_ok=True)
+
+        groups = {}
+        idx = 0
+        for f in files:
+            if not f or f.filename == '':
+                continue
+            filename = secure_filename(f.filename)
+            save_path = os.path.join(batch_dir, f"{idx:06d}_{filename}")
+            f.save(save_path)
+            idx += 1
+            try:
+                ds = pydicom.dcmread(save_path, stop_before_pixels=True, force=True)
+            except Exception:
+                ds = None
+
+            patient_id = str(getattr(ds, 'PatientID', '') or '') if ds else ''
+            patient_name = str(getattr(ds, 'PatientName', '') or '') if ds else ''
+            study_date = str(getattr(ds, 'StudyDate', '') or '') if ds else ''
+            modality = str(getattr(ds, 'Modality', '') or '') if ds else ''
+            study_desc = str(getattr(ds, 'StudyDescription', '') or '') if ds else ''
+            accession_number = str(getattr(ds, 'AccessionNumber', '') or '') if ds else ''
+            study_uid = str(getattr(ds, 'StudyInstanceUID', '') or '') if ds else ''
+
+            # Definir chave de agrupamento: por estudo/procedimento
+            if study_uid:
+                key = ('STUDY', study_uid)
+            elif accession_number:
+                key = ('ACC', patient_id, accession_number)
+            else:
+                key = ('FALLBACK', patient_id, study_date, modality or '', study_desc or '')
+
+            g = groups.get(key)
+            if not g:
+                g = {
+                    'file_paths': [],
+                    'patient_id': patient_id,
+                    'patient_name': patient_name,
+                    'study_date': None,
+                    'modality_set': set(),
+                    'study_desc': None,
+                    'accession_number': None,
+                    'study_uid': None,
+                }
+                groups[key] = g
+            g['file_paths'].append(save_path)
+            if study_date:
+                g['study_date'] = g['study_date'] or study_date
+            if modality:
+                g['modality_set'].add(modality)
+            if study_desc and not g['study_desc']:
+                g['study_desc'] = study_desc
+            if accession_number and not g['accession_number']:
+                g['accession_number'] = accession_number
+            if study_uid and not g['study_uid']:
+                g['study_uid'] = study_uid
+            if patient_name and not g['patient_name']:
+                g['patient_name'] = patient_name
+            if patient_id and not g['patient_id']:
+                g['patient_id'] = patient_id
+
+        # Construir itens agregados
+        items = []
+        groups_list = []
+        for _, g in groups.items():
+            modalities = sorted(list(g['modality_set'])) if g['modality_set'] else []
+            modality_text = '/'.join(modalities) if modalities else ''
+            items.append({
+                'patient_id': g['patient_id'] or '',
+                'patient_name': g['patient_name'] or '',
+                'study_date': g['study_date'] or '',
+                'modality': modality_text,
+                'study_desc': g['study_desc'] or '',
+                'accession_number': g['accession_number'] or '',
+            })
+            groups_list.append({'file_paths': g['file_paths']})
+
+        IMPORT_SESSIONS[batch_id] = {
+            'dir': batch_dir,
+            'files': [],
+            'groups': groups_list,
+        }
+        return jsonify({'batch_id': batch_id, 'items': items})
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
+
+@app.route('/dicom/importar/enviar', methods=['POST'])
+@login_required
+@admin_required
+def importar_dicom_enviar():
+    data = request.get_json(silent=True) or {}
+    batch_id = data.get('batch_id')
+    selected_indices = data.get('selected_indices') or []
+    dest_host = data.get('dest_host') or DEFAULT_PACS_HOST
+    dest_port = int(data.get('dest_port') or DEFAULT_PACS_PORT)
+    dest_aet = data.get('dest_aet') or DEFAULT_PACS_AET
+    local_aet = data.get('local_aet') or DEFAULT_LOCAL_AET
+
+    if not batch_id or batch_id not in IMPORT_SESSIONS:
+        return jsonify({'message': 'Lote inválido ou expirado'}), 400
+    session = IMPORT_SESSIONS[batch_id]
+    groups = session.get('groups', [])
+    if not groups:
+        return jsonify({'message': 'Nenhum grupo disponível para envio'}), 400
+
+    if not selected_indices:
+        selected_indices = list(range(len(groups)))
+
+    ae = AE(ae_title=local_aet)
+    ae.requested_contexts = AllStoragePresentationContexts
+
+    assoc = ae.associate(dest_host, dest_port, ae_title=dest_aet)
+    if not assoc.is_established:
+        return jsonify({'message': 'Falha ao conectar ao PACS (Association não estabelecida)'}), 502
+
+    sent_ok = 0
+    sent_fail = 0
+    for i in selected_indices:
+        if i < 0 or i >= len(groups):
+            sent_fail += 1
+            continue
+        file_paths = groups[i].get('file_paths', [])
+        for path in file_paths:
+            try:
+                ds = pydicom.dcmread(path, force=True)
+                status = assoc.send_c_store(ds)
+                if status and status.Status in (0x0000,):
+                    sent_ok += 1
+                else:
+                    sent_fail += 1
+            except Exception:
+                sent_fail += 1
+
+    assoc.release()
+
+    return jsonify({'sent_ok': sent_ok, 'sent_fail': sent_fail})
+
 @app.route("/deletar_paciente", methods=["POST"])
 @login_required
 @admin_required
@@ -365,6 +541,47 @@ def deletar_paciente():
     pat_sex = data["pat_sex"]
     if pat_birthdate == "None":
         pat_birthdate = ""
+
+    # Buscar contexto (empresa_id, modalidade, data_estudo) ANTES da deleção
+    ctx_empresa_id = None
+    ctx_modalidade = None
+    ctx_data_estudo = None
+    try:
+        conn_ctx = get_db_connection()
+        cur_ctx = conn_ctx.cursor()
+        cur_ctx.execute(
+            """
+            SELECT 
+                oa.pk  AS empresa_id,
+                sr.modality AS modalidade_estudo,
+                s.study_datetime AS data_estudo
+            FROM patient p
+            JOIN study s ON s.patient_fk = p.pk
+            JOIN series sr ON sr.study_fk = s.pk
+            LEFT JOIN organizations_app oa ON oa.presentation = sr.institution
+            WHERE p.pat_id = %s
+            ORDER BY s.study_datetime DESC NULLS LAST
+            LIMIT 1
+            """,
+            (pat_id,),
+        )
+        row = cur_ctx.fetchone()
+        if row:
+            ctx_empresa_id = row[0]
+            ctx_modalidade = row[1]
+            ctx_data_estudo = row[2]
+    except Exception:
+        pass
+    finally:
+        try:
+            cur_ctx.close()
+            conn_ctx.close()
+        except Exception:
+            pass
+
+    if pat_sex == "":
+        pat_sex = '""'
+
     hl7_msg = f"""MSH|^~\\&|SISTEMA_ORIGEM|CLINICA ARTUS|DCM4CHEE|DCM4CHEE|{datetime.now().strftime('%Y%m%d%H%M%S')}||ADT^A23|MSG_{pat_id}|P|2.3
 EVN|A23|{datetime.now().strftime('%Y%m%d%H%M%S')}
 PID|1||{pat_id}^^^||{pat_name}^^^||{pat_birthdate.replace('-','')}|{pat_sex}||"""
@@ -372,6 +589,18 @@ PID|1||{pat_id}^^^||{pat_name}^^^||{pat_birthdate.replace('-','')}|{pat_sex}||""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((f"{SERVER_IP}", 6663))
             s.sendall(b"\x0b" + hl7_msg.encode() + b"\x1c\x0d")
+        # Inserir log de deleção com contexto capturado
+        insert_log_registro(
+            tipo_acao="DELETE",
+            paciente_id=pat_id,
+            nome_paciente=pat_name,
+            usuario_nome=current_user.name,
+            paciente_birthdate=pat_birthdate or None,
+            paciente_sex=(None if pat_sex in ("", '""') else pat_sex),
+            empresa_id=ctx_empresa_id,
+            modalidade_estudo=ctx_modalidade,
+            data_estudo=ctx_data_estudo,
+        )
         return jsonify({"message": "Paciente excluído com sucesso!"}), 200
     except Exception as e:
         return jsonify({"message": f"Erro ao enviar mensagem HL7: {e}"}), 500
@@ -598,13 +827,15 @@ def editar_paciente():
     data = request.get_json()
     pat_id = data["pat_id"]
     pat_name = data["pat_name"]
-    pat_birthdate = data["pat_birthdate"]   
+    pat_birthdate = data["pat_birthdate"]
     if pat_birthdate == "None":
         pat_birthdate = ""
     if data["pat_sex"] == "":
         pat_sex = '""'
     else:
         pat_sex = data["pat_sex"]      
+    # Snapshot dos dados antes da atualização para comparar corretamente
+    snapshot_antes = _get_existing_patient_data(pat_id)
     hl7_msg = f"""MSH|^~\\&|SISTEMA_ORIGEM|CLINICA ARTUS|DCM4CHEE|DCM4CHEE|{datetime.now().strftime('%Y%m%d%H%M%S')}||ADT^A08|MSG_{pat_id}|P|2.3
 EVN|A08|{datetime.now().strftime('%Y%m%d%H%M%S')}
 PID|1||{pat_id}^^^||{pat_name}^^^||{pat_birthdate.replace('-','')}|{pat_sex}||"""
@@ -613,6 +844,16 @@ PID|1||{pat_id}^^^||{pat_name}^^^||{pat_birthdate.replace('-','')}|{pat_sex}||""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((f"{SERVER_IP}", 6662))
             s.sendall(b"\x0b" + hl7_msg.encode() + b"\x1c\x0d")
+        # Inserir log de atualização
+        insert_log_registro(
+            tipo_acao="UPDATE",
+            paciente_id=pat_id,
+            nome_paciente=pat_name,
+            usuario_nome=current_user.name,
+            paciente_birthdate=pat_birthdate or None,
+            paciente_sex=(None if pat_sex in ("", '""') else pat_sex),
+            dados_atuais_anterior=snapshot_antes,
+        )
         return jsonify({"message": "Paciente atualizado com sucesso!"}), 200
     except Exception as e:
         return jsonify({"message": f"Erro ao enviar mensagem HL7: {e}"}), 500
@@ -807,22 +1048,41 @@ def armazenamento():
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("""
+WITH fs_base AS (
+    SELECT 
+        f2.pk,
+        CASE 
+            WHEN f2.dirpath = 'archive'
+            THEN 'C:\\server\\dcm4chee-2.17.3-psql\\server\\default\\archive'
+            ELSE f2.dirpath
+        END AS dirpath,
+        f2.retrieve_aet,
+        f2.fs_status,
+        f2.fs_group_id
+    FROM filesystem f2
+)
 SELECT 
-    f2.pk,
-    f2.dirpath, 
-    f2.fs_group_id, 
-    f2.retrieve_aet, 
-    f2.fs_status, 
+    fb.pk,
+    fb.dirpath,
+    fb.fs_group_id,
+    fb.retrieve_aet,
+    fb.fs_status,
+    dm.total,
+    dm.used,
     ROUND(COALESCE(SUM(f.file_size), 0) / 1024 / 1024, 2) AS qtd
-FROM filesystem f2
-LEFT JOIN files f ON f.filesystem_fk = f2.pk
+FROM fs_base fb
+LEFT JOIN files f ON f.filesystem_fk = fb.pk
+JOIN disk_monitor dm
+    ON dm.drive = CONCAT(SPLIT_PART(fb.dirpath, E'\\\\', 1), E'\\\\')
 GROUP BY 
-    f2.pk,
-    f2.dirpath, 
-    f2.fs_group_id, 
-    f2.fs_status, 
-    f2.retrieve_aet
-    ORDER BY f2.fs_status
+    fb.pk,
+    fb.dirpath,
+    fb.fs_group_id,
+    fb.fs_status,
+    fb.retrieve_aet,
+    dm.total,
+    dm.used
+ORDER BY fb.fs_status
     """)
     directories = [{
         'pk': row[0],
@@ -830,7 +1090,9 @@ GROUP BY
         'fs_group_id': row[2],
         'retrieve_aet': row[3],
         'fs_status': row[4],
-        'qtd': row[5]
+        'total': row[5],
+        'used': row[6],
+        'qtd': row[7]
     } for row in cur.fetchall()]
     cur.close()
     conn.close()
@@ -838,7 +1100,49 @@ GROUP BY
     # Métricas gerais de armazenamento
     storage_stats = get_storage_stats()
 
-    return render_template('armazenamento.html', directories=directories, storage_stats=storage_stats)
+    # Soma total de capacidade de todos os repositórios (disk_monitor)
+    conn_dm = get_db_connection()
+    cur_dm = conn_dm.cursor()
+    try:
+        cur_dm.execute("SELECT COALESCE(SUM(total), 0) FROM disk_monitor")
+        total_bytes_all = cur_dm.fetchone()[0] or 0
+    finally:
+        cur_dm.close()
+        conn_dm.close()
+    overall_total_gb = round(float(total_bytes_all) / 1024 / 1024 / 1024, 2)
+
+    # Agregação mensal (últimos 12 meses) em GB para fs_status = 0
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            WITH monthly AS (
+                SELECT DATE_TRUNC('month', s.created_time) AS month_start,
+                       SUM(f.file_size) AS total_bytes
+                FROM study s
+                JOIN series se ON s.pk = se.study_fk
+                JOIN instance i ON se.pk = i.series_fk
+                JOIN files f ON i.pk = f.instance_fk
+                JOIN filesystem fs ON f.filesystem_fk = fs.pk
+                WHERE fs.fs_status = 0
+                  AND s.created_time IS NOT NULL
+                  AND se.modality != 'SR'
+                  AND s.created_time >= NOW() - INTERVAL '12 months'
+                GROUP BY month_start
+            )
+            SELECT TO_CHAR(month_start, 'MM/YYYY') AS mes_label,
+                   ROUND(COALESCE(total_bytes, 0) / 1024 / 1024 / 1024, 2) AS gb
+            FROM monthly
+            ORDER BY month_start
+        """)
+        rows = cur.fetchall()
+        monthly_labels = [r[0] for r in rows]
+        monthly_gb = [float(r[1]) for r in rows]
+    finally:
+        cur.close()
+        conn.close()
+
+    return render_template('armazenamento.html', directories=directories, storage_stats=storage_stats, monthly_labels=monthly_labels, monthly_gb=monthly_gb, overall_total_gb=overall_total_gb)
 
 @app.route('/configuracoes/armazenamento/salvar', methods=['POST'])
 @login_required
@@ -1527,8 +1831,13 @@ def gerencial_search():
             params.append(f"%{nome_paciente}%")
             
         if tipo_acao:
-            query += " AND tipo_acao = %s"
-            params.append(tipo_acao)
+            if tipo_acao.upper() == 'LOGIN':
+                # Buscar tanto registros com tipo_acao=LOGIN quanto os gravados como INSERT com contexto de LOGIN
+                query += " AND (tipo_acao = 'LOGIN' OR (tipo_acao = 'INSERT' AND contexto ILIKE %s))"
+                params.append('%LOGIN%')
+            else:
+                query += " AND tipo_acao = %s"
+                params.append(tipo_acao)
             
         if empresa_id:
             query += " AND empresa_id LIKE %s"

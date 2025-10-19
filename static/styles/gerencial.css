@@ -174,9 +174,8 @@
 }
 
 .badge.bg-secondary {
-    background: linear-gradient(135deg, #6c757d 0%, #545b62 100%) !important;
+    background: linear-gradient(135deg, #6c757d 0%, #545b625b 100%) !important;
 }
-
 /* Estado vazio */
 .text-center.py-5 {
     padding: 4rem 2rem !important;

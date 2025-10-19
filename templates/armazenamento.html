@@ -19,8 +19,24 @@
             <div class="row mb-3">
                 <div class="col-md-4 mb-2 mb-md-0">
                     <div class="border rounded p-3 h-100">
-                        <div class="text-muted small">Tamanho total (filesystem padrão - código 0)</div>
-                        <div class="h5 mb-0">{{ storage_stats.total_gb }} GB</div>
+                        <div class="text-muted small">Total Armazenado | Espaço Geral</div>
+                        <div class="h5 mb-0">{{ "%.2f"|format(storage_stats.total_gb|float) }} GB{% if overall_total_gb is defined %} / {{ "%.2f"|format(overall_total_gb|float) }} GB{% endif %}</div>
+                        {% if overall_total_gb is defined and overall_total_gb|float > 0 %}
+                        {% set total_gb = storage_stats.total_gb|float %}
+                        {% set capacity_gb = overall_total_gb|float %}
+                        {% set percent = (total_gb / capacity_gb * 100) %}
+                        {% set clamped = percent if percent < 100 else 100 %}
+                        {% set bar_class = 'bg-success' %}
+                        {% if percent >= 85 %}
+                            {% set bar_class = 'bg-danger' %}
+                        {% elif percent >= 60 %}
+                            {% set bar_class = 'bg-warning' %}
+                        {% endif %}
+                        <div class="progress mt-2" style="height: 10px;">
+                            <div class="progress-bar {{ bar_class }}" role="progressbar" style="width: {{ clamped|round(1) }}%;" aria-valuenow="{{ percent|round(1) }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <div class="small text-muted mt-1">{{ percent|round(1) }}% utilizado</div>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="col-md-4 mb-2 mb-md-0">
@@ -32,15 +48,7 @@
                 <div class="col-md-4">
                     <div class="border rounded p-3 h-100">
                         <div class="text-muted small">Dias restantes (estimativa)</div>
-                        <div class="h5 mb-0">
-                            {% if storage_stats.avg_mb_per_day_30 > 0 and storage_stats.days_remaining is not none %}
-                                {{ storage_stats.days_remaining }}
-                            {% elif storage_stats.avg_mb_per_day_30 == 0 %}
-                                ∞
-                            {% else %}
-                                N/A
-                            {% endif %}
-                        </div>
+                        <div class="h5 mb-0">{{ storage_stats.days_remaining if storage_stats.days_remaining is not none else 'N/A' }}</div>
                         {% if storage_stats.free_mb %}
                         <div class="text-muted small">Livre: {{ storage_stats.free_mb }} MB</div>
                         {% endif %}
@@ -53,11 +61,13 @@
                     <thead>
                         <tr>
                             <th style="width: 3%">ID</th>
-                            <th style="width: 10%">Diretório</th>
-                            <th style="width: 15%">Grupo</th>
+                            <th style="width: 20%">Diretório</th>
+                            <th style="width: 10%">Grupo</th>
                             <th style="width: 10%">AET</th>
                             <th style="width: 10%">Status</th>
-                            <th style="width: 15%">Armazenamento</th>
+                            <th style="width: 10%">Total</th>
+                            <th style="width: 10%">Usado</th>
+                            <th style="width: 10%">Armazenamento</th>
                             <th style="width: 15%">Ações</th>
                         </tr>
                     </thead>
@@ -75,6 +85,8 @@
                                 <span class="badge bg-secondary">Secundário</span>
                                 {% endif %}
                             </td>
+                            <td>{{ "%.2f"|format(dir.total|float / 1024**3) }} GB</td>
+                            <td>{{ "%.2f"|format(dir.used|float / 1024**3) }} GB</td>
                             <td>{{ dir.qtd }}</td>
                             <td>
                                 <div class="btn-group" role="group">

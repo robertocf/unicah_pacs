@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block title %}Importar DICOM para PACS{% endblock %}
+
+{% block extra_css %}
+<style>
+  .drop-zone {
+    border: 2px dashed #6c757d;
+    border-radius: 6px;
+    padding: 24px;
+    text-align: center;
+    color: #6c757d;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  .drop-zone.dragover { background-color: #f8f9fa; }
+  .table-preview { font-size: 12px; }
+  .config-card small { color: #6c757d; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex align-items-center mb-3">
+    <h2 class="mb-0">Importar DICOM para PACS</h2>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-8">
+      <div class="card h-100">
+        <div class="card-header bg-primary text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Seleção de Arquivos</h6>
+            <small class="text-light">Aceita múltiplos .dcm/.dicom e pastas inteiras</small>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="dropZone" class="drop-zone mb-3">
+            Arraste e solte arquivos/pastas aqui
+          </div>
+
+          <div class="row g-2 mb-2">
+            <div class="col-12 col-md-6">
+              <label class="form-label">Selecionar arquivos</label>
+              <input id="fileInput" class="form-control" type="file" multiple accept=".dcm,.dicom,application/dicom">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Selecionar pasta</label>
+              <input id="dirInput" class="form-control" type="file" webkitdirectory directory multiple>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mb-2">
+            <button id="btnLimpar" class="btn btn-outline-secondary btn-sm" type="button">Limpar seleção</button>
+            <span id="selInfo" class="align-self-center text-muted"></span>
+          </div>
+
+          <input type="hidden" id="batchId" value="">
+
+          <div class="table-responsive">
+            <table class="table table-sm table-hover table-preview" id="previewTable">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:28px"><input type="checkbox" id="chkAll"></th>
+                  <th style="width:120px">ID</th>
+                  <th>Nome</th>
+                  <th style="width:120px">Data do Estudo</th>
+                  <th style="width:100px">Modalidade</th>
+                  <th>Nome do Estudo</th>
+                  <th style="width:140px">Nº Acesso</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center">
+          <div id="statusText" class="text-muted small">Nenhuma seleção carregada.</div>
+          <div class="d-flex gap-2">
+            <button id="btnEnviar" class="btn btn-success" type="button" disabled>
+              <i class="fa-solid fa-paper-plane me-1"></i> Enviar ao PACS
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+      <div class="card h-100 config-card">
+        <div class="card-header bg-light">
+          <h6 class="mb-0">Destino PACS</h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-2">
+            <label class="form-label">Host</label>
+            <input id="destHost" type="text" class="form-control" value="{{ default_pacs_host }}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Porta</label>
+            <input id="destPort" type="number" class="form-control" value="11112">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">AE Title destino</label>
+            <input id="destAET" type="text" class="form-control" value="">
+          </div>
+          <div class="mb-0">
+            <label class="form-label">AE Title local</label>
+            <input id="localAET" type="text" class="form-control" value="UNICAH">
+          </div>
+          <small class="d-block mt-2">Você pode ajustar o destino conforme necessário.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  const tblBody = document.querySelector('#previewTable tbody');
+  const chkAll = document.getElementById('chkAll');
+  const btnEnviar = document.getElementById('btnEnviar');
+  const btnLimpar = document.getElementById('btnLimpar');
+  const statusText = document.getElementById('statusText');
+  const selInfo = document.getElementById('selInfo');
+  const batchInput = document.getElementById('batchId');
+  const fileInput = document.getElementById('fileInput');
+  const dirInput = document.getElementById('dirInput');
+  const dropZone = document.getElementById('dropZone');
+
+  const destHost = document.getElementById('destHost');
+  const destPort = document.getElementById('destPort');
+  const destAET = document.getElementById('destAET');
+  const localAET = document.getElementById('localAET');
+
+  let currentItems = [];
+
+  function formatDate(yyyymmdd) {
+    if (!yyyymmdd || yyyymmdd.length !== 8) return '';
+    return `${yyyymmdd.substring(6,8)}/${yyyymmdd.substring(4,6)}/${yyyymmdd.substring(0,4)}`;
+  }
+
+  function personNameToText(pn) {
+    if (!pn) return '';
+    const parts = String(pn).split('^').filter(Boolean);
+    return parts.join(' ');
+  }
+
+  function refreshCounts() {
+    const total = currentItems.length;
+    const selected = [...tblBody.querySelectorAll('input.row-select:checked')].length;
+    selInfo.textContent = total ? `${selected}/${total} selecionados` : '';
+    statusText.textContent = total ? `Itens carregados: ${total}` : 'Nenhuma seleção carregada.';
+    btnEnviar.disabled = selected === 0;
+  }
+
+  chkAll.addEventListener('change', () => {
+    const checked = chkAll.checked;
+    tblBody.querySelectorAll('input.row-select').forEach(ch => ch.checked = checked);
+    refreshCounts();
+  });
+
+  btnLimpar.addEventListener('click', () => {
+    fileInput.value = '';
+    dirInput.value = '';
+    batchInput.value = '';
+    currentItems = [];
+    tblBody.innerHTML = '';
+    chkAll.checked = false;
+    refreshCounts();
+  });
+
+  function populateTable(items) {
+    currentItems = items;
+    tblBody.innerHTML = '';
+    items.forEach((it, idx) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input class="form-check-input row-select" type="checkbox" data-index="${idx}" checked></td>
+        <td>${it.patient_id || ''}</td>
+        <td>${personNameToText(it.patient_name) || ''}</td>
+        <td>${formatDate(it.study_date) || ''}</td>
+        <td>${it.modality || ''}</td>
+        <td>${it.study_desc || ''}</td>
+        <td>${it.accession_number || ''}</td>
+      `;
+      tblBody.appendChild(tr);
+    });
+    chkAll.checked = true;
+    refreshCounts();
+  }
+
+  async function sendForPreview(fileList) {
+    if (!fileList || fileList.length === 0) return;
+    const form = new FormData();
+    for (const f of fileList) form.append('files', f);
+    statusText.textContent = 'Carregando e lendo metadados...';
+    btnEnviar.disabled = true;
+
+    try {
+      const resp = await fetch('/dicom/importar/preview', { method: 'POST', body: form });
+      if (!resp.ok) throw new Error('Falha ao processar arquivos');
+      const data = await resp.json();
+      batchInput.value = data.batch_id;
+      populateTable(data.items || []);
+      statusText.textContent = `Itens carregados: ${(data.items || []).length}`;
+    } catch (e) {
+      console.error(e);
+      alert('Erro no processamento dos arquivos.');
+      statusText.textContent = 'Erro ao processar arquivos.';
+    }
+  }
+
+  fileInput.addEventListener('change', (e) => sendForPreview(e.target.files));
+  dirInput.addEventListener('change', (e) => sendForPreview(e.target.files));
+
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    const dt = e.dataTransfer;
+    if (dt && dt.files && dt.files.length) sendForPreview(dt.files);
+  });
+
+  btnEnviar.addEventListener('click', async () => {
+    const batchId = batchInput.value;
+    if (!batchId) { alert('Nenhuma seleção carregada.'); return; }
+
+    const selected = [...tblBody.querySelectorAll('input.row-select:checked')]
+      .map(ch => parseInt(ch.getAttribute('data-index')));
+    if (selected.length === 0) { alert('Selecione ao menos um item.'); return; }
+
+    const payload = {
+      batch_id: batchId,
+      selected_indices: selected,
+      dest_host: destHost.value || '{{ default_pacs_host }}',
+      dest_port: parseInt(destPort.value || '{{ default_pacs_port }}'),
+      dest_aet: destAET.value || '{{ default_pacs_aet }}',
+      local_aet: localAET.value || '{{ default_local_aet }}'
+    };
+
+    btnEnviar.disabled = true;
+    statusText.textContent = `Enviando ${selected.length} arquivo(s) ao PACS...`;
+
+    try {
+      const resp = await fetch('/dicom/importar/enviar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.message || 'Erro no envio');
+
+      const ok = data.sent_ok || 0;
+      const fail = data.sent_fail || 0;
+      alert(`Envio concluído. Sucesso: ${ok}, Falhas: ${fail}`);
+      statusText.textContent = `Envio concluído. Sucesso: ${ok}, Falhas: ${fail}`;
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao enviar ao PACS.');
+      statusText.textContent = 'Erro ao enviar ao PACS.';
+    } finally {
+      btnEnviar.disabled = false;
+    }
+  });
+})();
+</script>
+{% endblock %}

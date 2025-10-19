@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <option value="">Todas as ações</option>
                 <option value="DELETE" {% if request.form.get('tipo_acao') == 'DELETE' %}selected{% endif %}>DELETE</option>
                 <option value="UPDATE" {% if request.form.get('tipo_acao') == 'UPDATE' %}selected{% endif %}>UPDATE</option>
-                <option value="INSERT" {% if request.form.get('tipo_acao') == 'INSERT' %}selected{% endif %}>INSERT</option>
+                <option value="LOGIN" {% if request.form.get('tipo_acao') == 'LOGIN' %}selected{% endif %}>LOGIN</option>
             </select>
         </div>
         <div class="col-md-3">
@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <span class="badge 
                                     {% if log.tipo_acao == 'DELETE' %}bg-danger
                                     {% elif log.tipo_acao == 'UPDATE' %}bg-warning text-dark
-                                    {% elif log.tipo_acao == 'INSERT' %}bg-success
+                                    {% elif log.tipo_acao == 'LOGIN' %}bg-success
                                     {% else %}bg-secondary{% endif %}">
                                     {{ log.tipo_acao or '-' }}
                                 </span>
