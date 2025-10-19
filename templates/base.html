@@ -35,6 +35,12 @@
                             <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">Início</a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">Atendimento</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">Faturamento</a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link {% if request.path == '/relatorios' %}active{% endif %}"
                                 href="/relatorios">Relatórios</a>
                         </li>
@@ -43,7 +49,8 @@
                                 href="/dicom/importar">Importar</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.path == '/gerencial' %}active{% endif %}" href="/gerencial">Gerencial</a>
+                            <a class="nav-link {% if request.path == '/gerencial' %}active{% endif %}"
+                                href="/gerencial">Gerencial</a>
                         </li>
                         <!-- <li class="nav-item">
                             <a class="nav-link {% if request.path == '/dicom/importar' %}active{% endif %}" href="/dicom/importar"><i class="fa-solid fa-file-import me-2"></i>Importar DICOM</a>
