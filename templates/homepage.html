@@ -17,8 +17,10 @@
     .table-hover tbody tr:hover {
         cursor: pointer;
     }
+
     .row-activated {
-        background-color: #fff3cd; /* amarelo claro para feedback */
+        background-color: #fff3cd;
+        /* amarelo claro para feedback */
         transition: background-color 0.6s ease;
     }
 </style>
@@ -155,17 +157,20 @@
                                                 aria-labelledby="dropdownMenuButton-{{ patient[0] }}">
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirViewer('{{ patient[7] }}')"><i
-                                                            class="fa-solid fa-tv me-2"></i>Carregar local</a></li>
+                                                            class="fa-solid fa-tv me-2"></i>Abrir no Weasis (local)</a></li>
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirModal('{{ patient[7] }}')"><i
-                                                            class="fas fa-print me-2"></i>Imprimir</a></li>
+                                                            class="fas fa-print me-2"></i>Imprimir imagens</a></li>
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirViewerWeb('{{ patient[7] }}')"><i
-                                                            class="fas fa-eye me-2"></i>Visualizar</a></li>
+                                                            class="fas fa-eye me-2"></i>Abrir no Weasis (servidor)</a></li>
+                                                <li><a class="dropdown-item" href="#"
+                                                        onclick="abrirViewerOHIFWeb('{{ patient[7] }}')"><i
+                                                            class="fa-solid fa-globe me-2"></i>Abrir no navegador</a></li>
                                                 {% if user_role == 'admin' %}
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirModalEditar('{{ patient[0] }}', '{{ patient[1] }}', '{{ patient[2] }}', '{{ patient[4] }}')"><i
-                                                            class="fas fa-pen me-2"></i>Editar</a></li>
+                                                            class="fas fa-pen me-2"></i>Editar dados</a></li>
                                                 {% endif %}
                                                 {% if user_role == 'admin' %}
                                                 <!-- <li><a class="dropdown-item" onclick="abrirLaudo('{{ patient[7] }}')"><i
@@ -173,11 +178,11 @@
                                                 {% endif %}
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirModalDownload('{{ patient[7] }}')"><i
-                                                            class="fas fa-download me-2"></i>Download</a></li>
+                                                            class="fas fa-download me-2"></i>Baixar imagens</a></li>
                                                 {% if user_role == 'admin' %}
                                                 <li><a class="dropdown-item text-danger" href="#"
                                                         onclick="deletarPaciente('{{ patient[0] }}', '{{ patient[1] }}', '{{ patient[2] }}', '{{ patient[4] }}')"><i
-                                                            class="fas fa-trash-alt me-2"></i>Excluir</a></li>
+                                                            class="fas fa-trash-alt me-2"></i>Excluir estudo</a></li>
                                                 {% endif %}
                                             </ul>
                                         </div>
@@ -470,6 +475,24 @@
                 });
         }
 
+                // Função para abrir o visualizador web OHIF
+        window.abrirViewerOHIFWeb = function (studyPk) {
+            fetch(`/teste_study_iuid/${studyPk}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.study_iuid) {
+                        const url = `http://{{SERVER_IP}}:8042/ohif/viewer?StudyInstanceUIDs=${data.study_iuid}`;
+                        window.open(url, '_blank');
+                    } else {
+                        alert('Erro ao obter o Study IUID');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao acessar o visualizador');
+                });
+        }
+
         // Código JavaScript para outras funcionalidades
 
         // Função para exibir alertas
@@ -494,7 +517,7 @@
         // Função para abrir o modal de edição
         window.abrirModalEditar = function (pat_id, pat_name, pat_birthdate, pat_sex) {
             document.getElementById('edit-pat_id').value = pat_id;
-            document.getElementById('edit-pat_name').value = pat_name;         
+            document.getElementById('edit-pat_name').value = pat_name;
             // Converte a data do formato dd/mm/yyyy para yyyy-mm-dd
             if (pat_birthdate && pat_birthdate !== 'None') {
                 const parts = pat_birthdate.split('/');
@@ -732,28 +755,28 @@
 
 {% endblock %}
 
-        var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
-        var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
-            return new bootstrap.Dropdown(dropdownToggleEl);
-        });
+var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
+var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
+return new bootstrap.Dropdown(dropdownToggleEl);
+});
 
-        // Duplo clique na linha do paciente para carregar local
-        const tableBody = document.querySelector('.table-container table tbody');
-        if (tableBody) {
-            tableBody.querySelectorAll('tr').forEach(row => {
-                // Ignora linhas de detalhes expansíveis
-                if (row.classList.contains('expanded-row')) return;
+// Duplo clique na linha do paciente para carregar local
+const tableBody = document.querySelector('.table-container table tbody');
+if (tableBody) {
+tableBody.querySelectorAll('tr').forEach(row => {
+// Ignora linhas de detalhes expansíveis
+if (row.classList.contains('expanded-row')) return;
 
-                row.addEventListener('dblclick', function (event) {
-                    const cell = event.target.closest('td');
-                    // Ignora o duplo clique no expansor (primeira coluna) e na coluna de ações (última)
-                    if (cell && (cell.cellIndex === 0 || cell.cellIndex === (row.cells.length - 1))) {
-                        return;
-                    }
-                    const studyPk = row.dataset.studyPk;
-                    if (studyPk) {
-                        abrirViewer(studyPk);
-                    }
-                });
-            });
-        }
+row.addEventListener('dblclick', function (event) {
+const cell = event.target.closest('td');
+// Ignora o duplo clique no expansor (primeira coluna) e na coluna de ações (última)
+if (cell && (cell.cellIndex === 0 || cell.cellIndex === (row.cells.length - 1))) {
+return;
+}
+const studyPk = row.dataset.studyPk;
+if (studyPk) {
+abrirViewer(studyPk);
+}
+});
+});
+}

@@ -25,7 +25,7 @@
   </div>
 
   <div class="row g-3">
-    <div class="col-12 col-lg-8">
+    <div class="col-12 col-lg-12">
       <div class="card h-100">
         <div class="card-header bg-primary text-white">
           <div class="d-flex justify-content-between align-items-center">
@@ -61,12 +61,13 @@
               <thead class="table-light">
                 <tr>
                   <th style="width:28px"><input type="checkbox" id="chkAll"></th>
-                  <th style="width:120px">ID</th>
+                  <th style="width:60px">ID</th>
                   <th>Nome</th>
                   <th style="width:120px">Data do Estudo</th>
-                  <th style="width:100px">Modalidade</th>
-                  <th>Nome do Estudo</th>
-                  <th style="width:140px">Nº Acesso</th>
+                  <th style="width:60px">Modalidade</th>
+                  <th style="width:120px">Descrição</th>
+                  <th style="width:100px">Nº Acesso</th>
+                  <th style="width:70px">Qtd Imagens</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -84,32 +85,6 @@
       </div>
     </div>
 
-    <div class="col-12 col-lg-4">
-      <div class="card h-100 config-card">
-        <div class="card-header bg-light">
-          <h6 class="mb-0">Destino PACS</h6>
-        </div>
-        <div class="card-body">
-          <div class="mb-2">
-            <label class="form-label">Host</label>
-            <input id="destHost" type="text" class="form-control" value="{{ default_pacs_host }}">
-          </div>
-          <div class="mb-2">
-            <label class="form-label">Porta</label>
-            <input id="destPort" type="number" class="form-control" value="11112">
-          </div>
-          <div class="mb-2">
-            <label class="form-label">AE Title destino</label>
-            <input id="destAET" type="text" class="form-control" value="">
-          </div>
-          <div class="mb-0">
-            <label class="form-label">AE Title local</label>
-            <input id="localAET" type="text" class="form-control" value="UNICAH">
-          </div>
-          <small class="d-block mt-2">Você pode ajustar o destino conforme necessário.</small>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 {% endblock %}
@@ -128,10 +103,10 @@
   const dirInput = document.getElementById('dirInput');
   const dropZone = document.getElementById('dropZone');
 
-  const destHost = document.getElementById('destHost');
-  const destPort = document.getElementById('destPort');
-  const destAET = document.getElementById('destAET');
-  const localAET = document.getElementById('localAET');
+  const destHost = '{{ default_pacs_host }}';
+  const destPort = '{{ default_pacs_port }}';
+  const destAET = '{{ default_pacs_aet }}';
+  const localAET = '{{ default_local_aet }}';
 
   let currentItems = [];
 
@@ -183,6 +158,7 @@
         <td>${it.modality || ''}</td>
         <td>${it.study_desc || ''}</td>
         <td>${it.accession_number || ''}</td>
+        <td>${it.files_count ?? it.count ?? ''}</td>
       `;
       tblBody.appendChild(tr);
     });
@@ -234,10 +210,10 @@
     const payload = {
       batch_id: batchId,
       selected_indices: selected,
-      dest_host: destHost.value || '{{ default_pacs_host }}',
-      dest_port: parseInt(destPort.value || '{{ default_pacs_port }}'),
-      dest_aet: destAET.value || '{{ default_pacs_aet }}',
-      local_aet: localAET.value || '{{ default_local_aet }}'
+      dest_host: destHost,
+      dest_port: parseInt(destPort),
+      dest_aet: destAET,
+      local_aet: localAET
     };
 
     btnEnviar.disabled = true;

@@ -97,7 +97,8 @@ def gerar_pdf_completo(study_uid):
     if not patient_data:
         return "Paciente não encontrado", 404
 
-    dicom_base_url = f"http://10.2.0.10/{archive_path}/"
+    from config import SERVER_IP, NGINX_AUTH_USER, NGINX_AUTH_PASSWORD
+    dicom_base_url = f"http://{SERVER_IP}/{archive_path}/"
     output_dir = "static/temp"
     os.makedirs(output_dir, exist_ok=True)
     jpg_files = []
@@ -106,26 +107,23 @@ def gerar_pdf_completo(study_uid):
         try:
             dicom_url = f"{dicom_base_url}{file_path}"
             print(f"DEBUG PDF: Tentando acessar URL: {dicom_url}")
-            
-            # Testar diferentes formatos de autenticação HTTP básica
-            auth = ('suporte_image', '$apr1$PefDLttp$C.smY/9DZ9PB4ZYaRmria0')
+
+            auth = (NGINX_AUTH_USER, NGINX_AUTH_PASSWORD)
             print(f"DEBUG PDF: Usando autenticação: {auth[0]}")
-            
+
             response = requests.get(dicom_url, auth=auth, timeout=10)
             print(f"DEBUG PDF: Status da resposta: {response.status_code}")
-            
+
             if response.status_code == 401:
-                print("DEBUG PDF: Erro 401 - Tentando com credenciais alternativas")
-                auth_alt = ('suporte_image', 'suporte123')
-                response = requests.get(dicom_url, auth=auth_alt, timeout=10)
-                print(f"DEBUG PDF: Status com credenciais alternativas: {response.status_code}")
-            
+                print("DEBUG PDF: Não autorizado - verifique NGINX_AUTH_USER/NGINX_AUTH_PASSWORD")
+                return "Não autorizado ao acessar imagens", 401
+
             if response.status_code != 200:
                 continue
-            ds = pydicom.dcmread(BytesIO(response.content))
-            if "PixelData" not in ds:
+            ds = pydicom.dcmread(BytesIO(response.content), force=True)
+            pixel_array = getattr(ds, 'pixel_array', None)
+            if pixel_array is None:
                 continue
-            pixel_array = ds.pixel_array
             pixel_array = (pixel_array / pixel_array.max() * 255).astype("uint8")
             img = Image.fromarray(pixel_array)
             file_name = os.path.basename(file_path)

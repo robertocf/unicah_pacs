@@ -170,6 +170,23 @@ def relatorio():
         }
         for row in cur.fetchall()
     ]
+
+    # Paginação
+    try:
+        page = int(request.args.get('page', 1))
+    except (TypeError, ValueError):
+        page = 1
+    per_page = 10
+    total_items = len(pacientes)
+    total_pages = max(1, (total_items + per_page - 1) // per_page)
+    if page < 1:
+        page = 1
+    if page > total_pages:
+        page = total_pages
+    start = (page - 1) * per_page
+    end = start + per_page
+    pacientes_page = pacientes[start:end]
+
     cur.close()
     conn.close()
     return render_template('relatorio.html',
@@ -184,7 +201,11 @@ def relatorio():
         perc_fem=perc_fem,
         perc_masc=perc_masc,
         media_idade=media_idade,
-        pacientes=pacientes
+        pacientes=pacientes_page,
+        page=page,
+        per_page=per_page,
+        total_items=total_items,
+        total_pages=total_pages
     )
 
 def admin_required(f):
@@ -467,6 +488,8 @@ def importar_dicom_preview():
                 'modality': modality_text,
                 'study_desc': g['study_desc'] or '',
                 'accession_number': g['accession_number'] or '',
+                'files_count': len(g['file_paths']) if g.get('file_paths') else 0,
+                'count': len(g['file_paths']) if g.get('file_paths') else 0,
             })
             groups_list.append({'file_paths': g['file_paths']})
 
@@ -988,10 +1011,10 @@ def thumbnail():
             
             if response.status_code != 200:
                 return "Erro ao baixar DICOM", 500
-            ds = pydicom.dcmread(BytesIO(response.content))
-            if "PixelData" not in ds:
+            ds = pydicom.dcmread(BytesIO(response.content), force=True)
+            pixel_array = getattr(ds, 'pixel_array', None)
+            if pixel_array is None:
                 return "DICOM sem imagem", 400
-            pixel_array = ds.pixel_array
             pixel_array = (pixel_array / pixel_array.max() * 255).astype("uint8")
             img = Image.fromarray(pixel_array)
             img.thumbnail((200, 200))
@@ -1644,6 +1667,10 @@ def download_imagens(study_pk):
         
         study_iuid, pat_name, study_datetime = study_info
         
+        # Nome e data seguros para arquivo
+        safe_name = secure_filename(pat_name) or "Paciente"
+        date_str = study_datetime.strftime('%Y%m%d') if hasattr(study_datetime, 'strftime') else datetime.now().strftime('%Y%m%d')
+        
         # Query para buscar o diretório do estudo
         archive_query = """
             SELECT f.dirpath
@@ -1683,13 +1710,14 @@ def download_imagens(study_pk):
         
         # Criar diretório temporário
         temp_dir = tempfile.mkdtemp()
-        zip_filename = f"{pat_name}_{study_datetime.strftime('%Y%m%d')}_{formato}.zip"
+        zip_filename = f"{safe_name}_{date_str}_{formato}.zip"
         zip_path = os.path.join(temp_dir, zip_filename)
         
         dicom_base_url = f"http://{SERVER_IP}/{archive_path}/"
         print(f"DEBUG: Base URL: {dicom_base_url}")
         print(f"DEBUG: Total de imagens encontradas: {len(images)}")
         
+        files_added = 0
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for idx, (filepath, sop_iuid) in enumerate(images):
                 # Construir URL do arquivo DICOM
@@ -1707,6 +1735,7 @@ def download_imagens(study_pk):
                             # Adicionar arquivo DICOM diretamente
                             arcname = f"image_{idx+1:04d}.dcm"
                             zipf.writestr(arcname, response.content)
+                            files_added += 1
                             print(f"DEBUG: Arquivo DICOM adicionado ao ZIP: {arcname}")
                         else:
                             # Converter DICOM para JPG
@@ -1733,6 +1762,7 @@ def download_imagens(study_pk):
                                     # Adicionar ao ZIP
                                     arcname = f"image_{idx+1:04d}.jpg"
                                     zipf.writestr(arcname, img_buffer.getvalue())
+                                    files_added += 1
                                     print(f"DEBUG: Arquivo JPG adicionado ao ZIP: {arcname}")
                             except Exception as e:
                                 print(f"Erro ao processar imagem {sop_iuid}: {e}")
@@ -1749,6 +1779,14 @@ def download_imagens(study_pk):
         # Fechar conexão antes do envio
         cur.close()
         conn.close()
+        
+        # Se nenhum arquivo foi adicionado, retornar erro amigável
+        if files_added == 0:
+            try:
+                shutil.rmtree(temp_dir)
+            except:
+                pass
+            return jsonify({'error': 'Não foi possível anexar imagens ao ZIP. Verifique credenciais ou servidor.'}), 502
         
         # Função para limpar diretório temporário após o download
         def remove_temp_dir():
@@ -1786,7 +1824,7 @@ def gerencial():
     return render_template('gerencial.html', logs=None)
 
 
-@app.route('/gerencial/search', methods=['POST'])
+@app.route('/gerencial/search', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def gerencial_search():
@@ -1795,19 +1833,22 @@ def gerencial_search():
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # Obter parâmetros do formulário
-        data_inicio = request.form.get('data_inicio')
-        data_fim = request.form.get('data_fim')
-        paciente_id = request.form.get('paciente_id')
-        nome_paciente = request.form.get('nome_paciente')
-        tipo_acao = request.form.get('tipo_acao')
-        empresa_id = request.form.get('empresa_id')
-        usuario_id = request.form.get('usuario_id')
+        # Obter parâmetros (funciona com GET e POST)
+        data_inicio = request.values.get('data_inicio')
+        data_fim = request.values.get('data_fim')
+        paciente_id = request.values.get('paciente_id')
+        nome_paciente = request.values.get('nome_paciente')
+        tipo_acao = request.values.get('tipo_acao')
+        empresa_id = request.values.get('empresa_id')
+        usuario_id = request.values.get('usuario_id')
         
-        # Construir query SQL dinamicamente
-        query = """
-            SELECT data_hora, empresa_id, usuario_id, tipo_acao, paciente_id, 
-                   nome_paciente, modalidade_estudo, data_estudo, contexto 
+        # Parâmetros de paginação
+        page = int(request.args.get('page', 1))
+        per_page = 10
+        
+        # Construir query SQL dinamicamente para contar total
+        count_query = """
+            SELECT COUNT(*) 
             FROM log_registros 
             WHERE 1=1
         """
@@ -1815,42 +1856,81 @@ def gerencial_search():
         
         # Adicionar filtros conforme os parâmetros fornecidos
         if data_inicio:
-            query += " AND DATE(data_hora) >= %s"
+            count_query += " AND DATE(data_hora) >= %s"
             params.append(data_inicio)
             
         if data_fim:
-            query += " AND DATE(data_hora) <= %s"
+            count_query += " AND DATE(data_hora) <= %s"
             params.append(data_fim)
             
         if paciente_id:
-            query += " AND paciente_id LIKE %s"
+            count_query += " AND paciente_id LIKE %s"
             params.append(f"%{paciente_id}%")
             
         if nome_paciente:
-            query += " AND nome_paciente LIKE %s"
+            count_query += " AND nome_paciente LIKE %s"
             params.append(f"%{nome_paciente}%")
             
         if tipo_acao:
             if tipo_acao.upper() == 'LOGIN':
                 # Buscar tanto registros com tipo_acao=LOGIN quanto os gravados como INSERT com contexto de LOGIN
-                query += " AND (tipo_acao = 'LOGIN' OR (tipo_acao = 'INSERT' AND contexto ILIKE %s))"
+                count_query += " AND (tipo_acao = 'LOGIN' OR (tipo_acao = 'INSERT' AND contexto ILIKE %s))"
                 params.append('%LOGIN%')
             else:
-                query += " AND tipo_acao = %s"
+                count_query += " AND tipo_acao = %s"
                 params.append(tipo_acao)
             
         if empresa_id:
-            query += " AND empresa_id LIKE %s"
+            count_query += " AND empresa_id LIKE %s"
             params.append(f"%{empresa_id}%")
             
         if usuario_id:
-            query += " AND usuario_id LIKE %s"
+            count_query += " AND usuario_id LIKE %s"
             params.append(f"%{usuario_id}%")
         
-        # Ordenar por data mais recente primeiro
-        query += " ORDER BY data_hora DESC LIMIT 1000"
+        # Executar query de contagem
+        cur.execute(count_query, params)
+        total_items = cur.fetchone()[0]
+        total_pages = (total_items + per_page - 1) // per_page
         
-        # Executar query
+        # Construir query principal com paginação
+        query = """
+            SELECT data_hora, empresa_id, usuario_id, tipo_acao, paciente_id, 
+                   nome_paciente, modalidade_estudo, data_estudo, contexto 
+            FROM log_registros 
+            WHERE 1=1
+        """
+        
+        # Adicionar os mesmos filtros
+        if data_inicio:
+            query += " AND DATE(data_hora) >= %s"
+            
+        if data_fim:
+            query += " AND DATE(data_hora) <= %s"
+            
+        if paciente_id:
+            query += " AND paciente_id LIKE %s"
+            
+        if nome_paciente:
+            query += " AND nome_paciente LIKE %s"
+            
+        if tipo_acao:
+            if tipo_acao.upper() == 'LOGIN':
+                query += " AND (tipo_acao = 'LOGIN' OR (tipo_acao = 'INSERT' AND contexto ILIKE %s))"
+            else:
+                query += " AND tipo_acao = %s"
+            
+        if empresa_id:
+            query += " AND empresa_id LIKE %s"
+            
+        if usuario_id:
+            query += " AND usuario_id LIKE %s"
+        
+        # Ordenar por data mais recente primeiro e aplicar paginação
+        offset = (page - 1) * per_page
+        query += f" ORDER BY data_hora DESC LIMIT {per_page} OFFSET {offset}"
+        
+        # Executar query principal
         cur.execute(query, params)
         results = cur.fetchall()
         
@@ -1873,7 +1953,19 @@ def gerencial_search():
         cur.close()
         conn.close()
         
-        return render_template('gerencial.html', logs=logs)
+        return render_template('gerencial.html', 
+                             logs=logs,
+                             page=page,
+                             per_page=per_page,
+                             total_items=total_items,
+                             total_pages=total_pages,
+                             data_inicio=data_inicio,
+                             data_fim=data_fim,
+                             paciente_id=paciente_id,
+                             nome_paciente=nome_paciente,
+                             tipo_acao=tipo_acao,
+                             empresa_id=empresa_id,
+                             usuario_id=usuario_id)
         
     except Exception as e:
         print(f"Erro ao pesquisar logs: {e}")
