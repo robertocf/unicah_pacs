@@ -34,22 +34,27 @@
                         <li class="nav-item">
                             <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">Início</a>
                         </li>
+                        {% if permissions.get('visualizar_relatorios') %}
                         <li class="nav-item">
                             <a class="nav-link {% if request.path == '/relatorios' %}active{% endif %}"
                                 href="/relatorios">Relatórios</a>
                         </li>
+                        {% endif %}
                         <li class="nav-item">
                             <a class="nav-link {% if request.path == '/dicom/importar' %}active{% endif %}"
                                 href="/dicom/importar">Importar</a>
                         </li>
+                        {% if permissions.get('acessar_gerencial') %}
                         <li class="nav-item">
                             <a class="nav-link {% if request.path == '/gerencial' %}active{% endif %}"
                                 href="/gerencial">Gerencial</a>
                         </li>
+                        {% endif %}
                         <!-- <li class="nav-item">
                             <a class="nav-link {% if request.path == '/dicom/importar' %}active{% endif %}" href="/dicom/importar"><i class="fa-solid fa-file-import me-2"></i>Importar DICOM</a>
                         </li>
                         -->
+                        {% if permissions.get('acessar_menu_configuracoes') %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle {% if request.path.startswith('/configuracoes') %}active{% endif %}"
                                 href="#" id="navbarDropdownConfig" role="button" data-bs-toggle="dropdown"
@@ -57,16 +62,29 @@
                                 Configurações
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="navbarDropdownConfig">
+                                {% if permissions.get('criar_usuarios') %}
                                 <li><a class="dropdown-item" href="/configuracoes/usuarios"><i
                                             class="fas fa-users me-2"></i>Usuários</a></li>
+                                {% endif %}
+                                {% if permissions.get('criar_empresas') %}
                                 <li><a class="dropdown-item" href="/configuracoes/empresas"><i
                                             class="fa-solid fa-industry me-2"></i>Empresas</a></li>
+                                {% endif %}
+                                {% if permissions.get('associar') %}
                                 <li><a class="dropdown-item" href="/configuracoes/associacoes"><i
                                             class="fas fa-link me-2"></i>Associações</a></li>
+                                {% endif %}
+                                {% if permissions.get('acessar_armazenamento') %}
                                 <li><a class="dropdown-item" href="/configuracoes/armazenamento"><i
                                             class="fas fa-hdd me-2"></i>Armazenamento</a></li>
+                                {% endif %}
+                                {% if permissions.get('acessar_permissoes') %}
+                                <li><a class="dropdown-item" href="/configuracoes/permissoes"><i
+                                            class="fas fa-shield-alt me-2"></i>Permissões</a></li>
+                                {% endif %}
                             </ul>
                         </li>
+                        {% endif %}
                     </ul>
 
                     <div class="ms-auto">
@@ -77,6 +95,7 @@
                                     data-bs-toggle="dropdown" aria-expanded="false">
                                     <div class="d-inline-block">
                                         <div><i class="fas fa-user me-2"></i>{{ current_user.name }}</div>
+                                        <div class="small text-light-emphasis">Versão {{ APP_VERSION }}</div>
                                         <small class="text-light-emphasis">{{ current_user.role }}</small>
                                     </div>
                                 </a>

@@ -219,6 +219,7 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
         "homepage.html",
         SERVER_IP=SERVER_IP,
         patients=patients,
+        visible_count=len(patients),
         page=page,
         per_page=per_page_param,  # Usar o valor original para o dropdown
         total_pages=total_pages,

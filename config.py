@@ -14,12 +14,16 @@ NGINX_AUTH_USER = os.getenv('NGINX_AUTH_USER', 'suporte_image')
 # ATENÇÃO: Use a senha em texto puro (não o hash do htpasswd)
 NGINX_AUTH_PASSWORD = os.getenv('NGINX_AUTH_PASSWORD', '@@AgionTec!324')
 
+# Versão do sistema (pode ser sobrescrita por variável de ambiente APP_VERSION)
+APP_VERSION = os.getenv('APP_VERSION', '1.1.0')
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'ohhr6T8UmvdC4Ws8Gn1q1pEZ2B5YfF8qDeag9nfe1ojeXVa6OzPb0W7BCVWrIAJgS66XmTrRWiaPzbmEi3uC7zsQKruYS1Q5u9a36GcJCfx2w1jTSAbWW8joG5jkvp53lHA5g93i0452LO4wQRJU8bhDAlYxRhiCMZhEYIkuEjqkpqCQnYcE4BASv6DDMPZv'
 app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{SERVER_USER}:{SERVER_PASS}@{SERVER_IP}/{SERVER_DB}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['NGINX_AUTH_USER'] = NGINX_AUTH_USER
 app.config['NGINX_AUTH_PASSWORD'] = NGINX_AUTH_PASSWORD
+app.config['APP_VERSION'] = APP_VERSION
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()

@@ -30,6 +30,24 @@ from models.Users import User
 from services.disk_reaming import get_free_space_bytes, get_average_daily_usage_bytes, REPOSITORY_PATH, DAYS_TO_AVERAGE, format_bytes
 from services.storage_stats import get_storage_stats
 from services.audit_logs import insert_log_registro, _get_existing_patient_data, insert_login_log
+from services.permissions import get_user_permissions, list_permission_definitions
+
+@app.context_processor
+def inject_permissions():
+    try:
+        if current_user and getattr(current_user, 'is_authenticated', False):
+            return {'permissions': get_user_permissions(current_user)}
+        return {'permissions': {}}
+    except Exception:
+        return {'permissions': {}}
+
+@app.context_processor
+def inject_app_version():
+    # Disponibiliza APP_VERSION em todos os templates
+    try:
+        return {'APP_VERSION': app.config.get('APP_VERSION', '1.0.0')}
+    except Exception:
+        return {'APP_VERSION': '1.0.0'}
 
 
 @app.route('/relatorios', methods=['GET'])
@@ -1971,3 +1989,12 @@ def gerencial_search():
         print(f"Erro ao pesquisar logs: {e}")
         flash(f'Erro ao pesquisar logs: {str(e)}', 'error')
         return render_template('gerencial.html', logs=None)
+
+# Página de Permissões (layout, sem persistência)
+@app.route('/configuracoes/permissoes', methods=['GET'])
+@login_required
+@admin_required
+def configuracoes_permissoes():
+    usuarios = User.query.all()
+    roles = sorted({u.role for u in usuarios if getattr(u, 'role', None)})
+    return render_template('permissoes.html', usuarios=usuarios, roles=roles, permission_defs=list_permission_definitions())
