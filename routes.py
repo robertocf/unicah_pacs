@@ -2003,3 +2003,40 @@ def configuracoes_permissoes():
     usuarios = User.query.all()
     roles = sorted({u.role for u in usuarios if getattr(u, 'role', None)})
     return render_template('permissoes.html', usuarios=usuarios, roles=roles, permission_defs=list_permission_definitions())
+
+# Página Configurar Agenda
+@app.route('/configuracoes/agenda', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def configurar_agenda():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'abrir_agenda':
+            data_inicio = request.form.get('data_inicio')
+            hora_inicio = request.form.get('hora_inicio')
+            data_fim = request.form.get('data_fim')
+            hora_fim = request.form.get('hora_fim')
+            intervalo = request.form.get('intervalo')
+            responsavel = request.form.get('responsavel')
+
+            if not all([data_inicio, hora_inicio, data_fim, hora_fim, intervalo, responsavel]):
+                flash('Preencha todos os campos para abrir a agenda.', 'error')
+            else:
+                flash(f"Abertura registrada: {data_inicio} {hora_inicio} → {data_fim} {hora_fim}, intervalo {intervalo} min, responsável {responsavel}", 'success')
+
+        elif action == 'novo_feriado':
+            feriado_data = request.form.get('feriado_data', '')
+            feriado_nome = request.form.get('feriado_nome', '')
+            feriado_tipo = request.form.get('feriado_tipo', '')
+
+            if not feriado_data:
+                flash('Informe a data do feriado.', 'error')
+            elif not feriado_nome:
+                flash('Informe o nome do feriado.', 'error')
+            else:
+                flash(f"Feriado cadastrado: {feriado_nome} ({feriado_tipo}) em {feriado_data}", 'success')
+
+        else:
+            flash('Ação inválida.', 'error')
+
+    return render_template('configurar_agenda.html')
