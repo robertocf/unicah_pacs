@@ -302,7 +302,7 @@ def salvar_no_banco(patient_id, study_uid, modality, path):
 @app.route("/", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for("homepage"))
+        return redirect(url_for("home"))
     if request.method == "POST":
         user_id = request.form["username"]
         password = request.form["password"]
@@ -324,7 +324,7 @@ def login():
             user = User.query.filter_by(user_id=user_id).first()
             login_user(user)
             insert_login_log(usuario_nome=(user.name or user.user_id))
-            return redirect(url_for("homepage"))
+            return redirect(url_for("home"))
         return render_template("login.html", erro="Usuário ou senha inválidos")
     return render_template("login.html")
 
@@ -348,7 +348,12 @@ def atualizar_perfil():
     else:
         return jsonify({'success': False, 'message': 'Nenhuma alteração realizada'})
 
-@app.route("/home", methods=["GET", "POST"])
+@app.route("/home", methods=["GET"]) 
+@login_required
+def home():
+    return render_template("homepage.html")
+
+@app.route("/estudos", methods=["GET", "POST"]) 
 @login_required
 def homepage():
     alert = request.args.get('alert')

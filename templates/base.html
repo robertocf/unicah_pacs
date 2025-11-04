@@ -54,18 +54,6 @@
                                 href="/gerencial">Gerencial</a>
                         </li>
                         {% endif %}
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.path == '/registro' %}active{% endif %}"
-                               href="/registro">Registro</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.path == '/agenda' %}active{% endif %}"
-                               href="/agenda">Agenda</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.path == '/consulta' %}active{% endif %}"
-                               href="/consulta">Consulta</a>
-                        </li>
                         <!-- <li class="nav-item">
                             <a class="nav-link {% if request.path == '/dicom/importar' %}active{% endif %}" href="/dicom/importar"><i class="fa-solid fa-file-import me-2"></i>Importar DICOM</a>
                         </li>
@@ -97,7 +85,6 @@
                                 {% if permissions.get('acessar_armazenamento') %}
                                 <li><a class="dropdown-item" href="/configuracoes/armazenamento"><i class="fas fa-hdd me-2"></i>Armazenamento</a></li>
                                 {% endif %}
-                                <li><a class="dropdown-item" href="/configuracoes/agenda"><i class="fa-regular fa-calendar-check me-2"></i>Configurar Agenda</a></li>
                             </ul>
                         </li>
                         {% endif %}
