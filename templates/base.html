@@ -34,6 +34,10 @@
                         <li class="nav-item">
                             <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">Início</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path.startswith('/estudos') or request.path.startswith('/estudos') %}active{% endif %}"
+                               href="/estudos">Estudos</a>
+                        </li>
                         {% if permissions.get('visualizar_relatorios') %}
                         <li class="nav-item">
                             <a class="nav-link {% if request.path == '/relatorios' %}active{% endif %}"
@@ -50,6 +54,18 @@
                                 href="/gerencial">Gerencial</a>
                         </li>
                         {% endif %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == '/registro' %}active{% endif %}"
+                               href="/registro">Registro</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == '/agenda' %}active{% endif %}"
+                               href="/agenda">Agenda</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == '/consulta' %}active{% endif %}"
+                               href="/consulta">Consulta</a>
+                        </li>
                         <!-- <li class="nav-item">
                             <a class="nav-link {% if request.path == '/dicom/importar' %}active{% endif %}" href="/dicom/importar"><i class="fa-solid fa-file-import me-2"></i>Importar DICOM</a>
                         </li>
@@ -62,26 +78,26 @@
                                 Configurações
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="navbarDropdownConfig">
+                                <li><h6 class="dropdown-header">Administração</h6></li>
                                 {% if permissions.get('criar_usuarios') %}
-                                <li><a class="dropdown-item" href="/configuracoes/usuarios"><i
-                                            class="fas fa-users me-2"></i>Usuários</a></li>
+                                <li><a class="dropdown-item" href="/configuracoes/usuarios"><i class="fas fa-users me-2"></i>Usuários</a></li>
                                 {% endif %}
                                 {% if permissions.get('criar_empresas') %}
-                                <li><a class="dropdown-item" href="/configuracoes/empresas"><i
-                                            class="fa-solid fa-industry me-2"></i>Empresas</a></li>
-                                {% endif %}
-                                {% if permissions.get('associar') %}
-                                <li><a class="dropdown-item" href="/configuracoes/associacoes"><i
-                                            class="fas fa-link me-2"></i>Associações</a></li>
-                                {% endif %}
-                                {% if permissions.get('acessar_armazenamento') %}
-                                <li><a class="dropdown-item" href="/configuracoes/armazenamento"><i
-                                            class="fas fa-hdd me-2"></i>Armazenamento</a></li>
+                                <li><a class="dropdown-item" href="/configuracoes/empresas"><i class="fa-solid fa-industry me-2"></i>Empresas</a></li>
                                 {% endif %}
                                 {% if permissions.get('acessar_permissoes') %}
-                                <li><a class="dropdown-item" href="/configuracoes/permissoes"><i
-                                            class="fas fa-shield-alt me-2"></i>Permissões</a></li>
+                                <li><a class="dropdown-item" href="/configuracoes/permissoes"><i class="fas fa-shield-alt me-2"></i>Permissões</a></li>
                                 {% endif %}
+
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header">Sistema</h6></li>
+                                {% if permissions.get('associar') %}
+                                <li><a class="dropdown-item" href="/configuracoes/associacoes"><i class="fas fa-link me-2"></i>Associações</a></li>
+                                {% endif %}
+                                {% if permissions.get('acessar_armazenamento') %}
+                                <li><a class="dropdown-item" href="/configuracoes/armazenamento"><i class="fas fa-hdd me-2"></i>Armazenamento</a></li>
+                                {% endif %}
+                                <li><a class="dropdown-item" href="/configuracoes/agenda"><i class="fa-regular fa-calendar-check me-2"></i>Configurar Agenda</a></li>
                             </ul>
                         </li>
                         {% endif %}

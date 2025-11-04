@@ -3,8 +3,11 @@ def get_user_permissions(user):
     Retorna um dicionário de permissões para o usuário.
     No futuro, isso será carregado do banco de dados.
     """
-    # Admin tem todas as permissões
-    if getattr(user, 'role', None) == 'admin':
+    # Admin/Root têm todas as permissões
+    role = (getattr(user, 'role', '') or '').lower()
+    user_id = (getattr(user, 'user_id', '') or '').lower()
+    name = (getattr(user, 'name', '') or '').lower()
+    if role in ('admin', 'root') or user_id == 'root' or name == 'root':
         return {
             'visualizar_estudos': True,
             'editar_estudos': True,

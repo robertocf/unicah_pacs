@@ -1,0 +1,786 @@
+{% extends "base.html" %}
+
+{% block title %}Pesquisa de Pacientes{% endblock %}
+
+
+{% block extra_css %}
+<style>
+    /* Estilo para a linha expansível */
+    .expanded-row {
+        background-color: #f8f9fa;
+    }
+
+    .expanded-row td {
+        padding: 15px;
+    }
+
+    .table-hover tbody tr:hover {
+        cursor: pointer;
+    }
+
+    .row-activated {
+        background-color: #fff3cd;
+        /* amarelo claro para feedback */
+        transition: background-color 0.6s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Conteúdo Principal -->
+<div class="content-wrapper">
+    <div class="container-fluid mt-3">
+        <div class="row">
+            <div class="col-12 main-content">
+                <div class="search-container">
+                    <form method="POST" class="row g-3">
+                        <div class="container-pesquisa row g-3">
+                            <div class="col-md-1">
+                                <label for="id_paciente" class="form-label">ID</label>
+                                <input type="text" class="form-control" id="id_paciente" name="id_paciente"
+                                    value="{{ request.form.get('id_paciente', '') }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="nome" class="form-label">Nome</label>
+                                <input type="text" class="form-control" id="nome" name="nome"
+                                    value="{{ request.form.get('nome', '') }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="sexo" class="form-label">Sexo</label>
+                                <select class="form-select" id="sexo" name="sexo">
+                                    <option value="">Todos</option>
+                                    <option value="M" {% if request.form.get('sexo')=='M' %}selected{% endif %}>
+                                        Masculino</option>
+                                    <option value="F" {% if request.form.get('sexo')=='F' %}selected{% endif %}>Feminino
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="data_atendimento" class="form-label">Data de Atendimento</label>
+                                <select class="form-select" id="data_atendimento" name="data_atendimento">
+                                    <option value="all" {% if request.form.get('data_atendimento')=='all' %}selected{%
+                                        endif %}>Todas</option>
+                                    <option value="today" {% if request.form.get('data_atendimento')=='today'
+                                        %}selected{% endif %}>Hoje</option>
+                                    <option value="last3days" {% if request.form.get('data_atendimento')=='last3days'
+                                        %}selected{% endif %}>Últimos 3 dias</option>
+                                    <option value="last30days" {% if request.form.get('data_atendimento')=='last30days'
+                                        %}selected{% endif %}>Últimos 30 dias</option>
+                                </select>
+                            </div>
+                            <div class="col-md-1">
+                                <label for="modalidade" class="form-label">Modalidade</label>
+                                <select class="form-select" id="modalidade" name="modalidade">
+                                    <option value="all" {% if request.form.get('modalidade')=='all' %}selected{% endif
+                                        %}>
+                                        Todas</option>
+                                    <option value="US" {% if request.form.get('modalidade')=='US' %}selected{% endif %}>
+                                        US</option>
+                                    <option value="CT" {% if request.form.get('modalidade')=='CT' %}selected{% endif %}>
+                                        CT</option>
+                                    <option value="DX" {% if request.form.get('modalidade')=='DX' %}selected{% endif %}>
+                                        DX</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="per_page" class="form-label">Itens por página</label>
+                                <select class="form-select" id="per_page" name="per_page" onchange="this.form.submit()">
+                                    {% for option in per_page_options %}
+                                    <option value="{{ option }}" {% if option==per_page %}selected{% endif %}>{{ option
+                                        }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-1 text-end align-self-end">
+                                <button type="submit" class="btn btn-primary">Pesquisar</button>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="alert-container" class="mt-3"></div>
+                    <!-- Tabela -->
+                    <div class="table-container mt-3">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>ID</th>
+                                    <th>Paciente</th>
+                                    <th>Nascimento</th>
+                                    <th>Idade</th>
+                                    <th>Sexo</th>
+                                    <th>Modalidade</th>
+                                    <th>Procedimento</th>
+                                    <th>Protocolo</th>
+                                    <th>Data</th>
+                                    <th>Status</th>
+                                    <th>Qtd</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if patients %}
+                                {% for patient in patients %}
+                                <tr data-study-pk="{{ patient[7] }}">
+                                    <td class="expand-trigger" data-bs-toggle="collapse"
+                                        data-bs-target="#expand-{{ patient[0] }}">
+                                        <i class="fas fa-plus-circle text-success"></i>
+                                    </td>
+                                    <td>{{ patient[0] }}</td>
+                                    <td>{{ patient[1] }}</td>
+                                    <td>{{ patient[2] }}</td>
+                                    <td>{{ patient[3] }}</td>
+                                    <td>{{ patient[4] }}</td>
+                                    <td>{{ patient[5] }}</td>
+                                    <td>{{ patient[6] }}</td>
+                                    <td>{{ patient[15] }}</td>
+                                    <td>{{ patient[8] }}</td>
+                                    <td>
+                                        {% if patient[9] == 'Impresso' %}
+                                        <span class="status-green">{{ patient[9] }}</span>
+                                        {% elif patient[9] == 'Pronto' %}
+                                        <span class="status-orange">{{ patient[9] }}</span>
+                                        {% elif patient[9] == 'Visual' %}
+                                        <span class="status-blue">{{ patient[9] }}</span>
+                                        {% else %}
+                                        <span class="status-red">{{ patient[9] }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ patient[10] }}</td>
+                                    <td>
+                                        <div class="dropdown">
+                                            <button class="btn btn-secondary dropdown-toggle btn-sm" type="button"
+                                                id="dropdownMenuButton-{{ patient[0] }}" data-bs-toggle="dropdown"
+                                                aria-expanded="false">
+
+                                            </button>
+                                            <ul class="dropdown-menu"
+                                                aria-labelledby="dropdownMenuButton-{{ patient[0] }}">
+                                                <li><a class="dropdown-item" href="#"
+                                                        onclick="abrirViewer('{{ patient[7] }}')"><i
+                                                            class="fa-solid fa-tv me-2"></i>Abrir no Weasis (local)</a></li>
+                                                <li><a class="dropdown-item" href="#"
+                                                        onclick="abrirModal('{{ patient[7] }}')"><i
+                                                            class="fas fa-print me-2"></i>Imprimir imagens</a></li>
+                                                <li><a class="dropdown-item" href="#"
+                                                        onclick="abrirViewerWeb('{{ patient[7] }}')"><i
+                                                            class="fas fa-eye me-2"></i>Abrir no Weasis (servidor)</a></li>
+                                                <li><a class="dropdown-item" href="#"
+                                                        onclick="abrirViewerOHIFWeb('{{ patient[7] }}')"><i
+                                                            class="fa-solid fa-globe me-2"></i>Abrir no navegador</a></li>
+                                                {% if user_role == 'admin' %}
+                                                <li><a class="dropdown-item" href="#"
+                                                        onclick="abrirModalEditar('{{ patient[0] }}', '{{ patient[1] }}', '{{ patient[2] }}', '{{ patient[4] }}')"><i
+                                                            class="fas fa-pen me-2"></i>Editar dados</a></li>
+                                                {% endif %}
+                                                {% if user_role == 'admin' %}
+                                                <li><a class="dropdown-item" href="#" onclick="abrirLaudo('{{ patient[7] }}')"><i class="fa-regular fa-file-word me-2"></i>Laudo</a></li>
+                                                {% endif %}
+                                                <li><a class="dropdown-item" href="#"
+                                                        onclick="abrirModalDownload('{{ patient[7] }}')"><i
+                                                            class="fas fa-download me-2"></i>Baixar imagens</a></li>
+                                                {% if user_role == 'admin' %}
+                                                <li><a class="dropdown-item text-danger" href="#"
+                                                        onclick="deletarPaciente('{{ patient[0] }}', '{{ patient[1] }}', '{{ patient[2] }}', '{{ patient[4] }}', '{{ patient[16] }}')"><i
+                                                            class="fas fa-trash-alt me-2"></i>Excluir estudo</a></li>
+                                                {% endif %}
+                                            </ul>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="collapse expanded-row" id="expand-{{ patient[0] }}">
+                                    <td colspan="12"> <!-- ajuste o colspan se precisar -->
+                                        <div class="p-3">
+                                            <h6>Detalhes do Atendimento</h6>
+                                            <p><strong>PK:</strong> {{ patient[7] }}</p>
+                                            <p><strong>EMPRESA:</strong> {{ patient[12] }}</p>
+                                            <p><strong>EQUIPAMENTO:</strong> {{ patient[13] }}</p>
+                                            <p><strong>SOLICITANTE:</strong> {{ patient[14] }}</p>
+                                            <p><strong>PROCEDIMENTO:</strong> {{ patient[6] }}</p>
+                                            <p><strong>STUDY ID:</strong> {{ patient[16] }}</p>
+                                            <button type="button" class="btn bg-custom text-light"
+                                                onclick="abrirModalEditarEstudo('{{ patient[7] }}', '{{ patient[12] }}', '{{ patient[14] }}', '{{ patient[6] }}', '{{ patient[17] }}')">
+                                                Editar Estudo
+                                            </button>
+
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="11" class="text-center">Nenhum resultado encontrado</td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Paginação -->
+                    {% if per_page != 'Todas' %}
+                    <div class="pagination">
+                        {% if page > 1 %}
+                        <a
+                            href="{{ url_for('homepage', page=page-1, per_page=per_page, id_paciente=id_paciente, nome=nome, sexo=sexo, data_atendimento=data_atendimento, modalidade=modalidade) }}">Anterior</a>
+                        {% else %}
+                        <a href="#" class="disabled">Anterior</a>
+                        {% endif %}
+                        {% for p in range(1, total_pages + 1) %}
+                        <a href="{{ url_for('homepage', page=p, per_page=per_page, id_paciente=id_paciente, nome=nome, sexo=sexo, data_atendimento=data_atendimento, modalidade=modalidade) }}"
+                            {% if p==page %}class="active" {% endif %}>{{ p }}</a>
+                        {% endfor %}
+                        {% if page < total_pages %} <a
+                            href="{{ url_for('homepage', page=page+1, per_page=per_page, id_paciente=id_paciente, nome=nome, sexo=sexo, data_atendimento=data_atendimento, modalidade=modalidade) }}">
+                            Próximo</a>
+                            {% else %}
+                            <a href="#" class="disabled">Próximo</a>
+                            {% endif %}
+                    </div>
+                    {% endif %}
+                    <!-- Rodapé: contador de linhas visíveis -->
+                    <div class="mt-2 text-muted" style="text-align:center; font-size:0.80rem;">
+                        registros exibidos nesta visualização: <strong>{{ visible_count }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Impressão -->
+<div class="modal fade" id="modalEscolhaImpressao" tabindex="-1" aria-labelledby="tituloModal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tituloModal">Como deseja imprimir?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p>Você quer imprimir <strong>todas</strong> as imagens ou <strong>selecionar</strong> quais deseja
+                    imprimir?</p>
+                <button class="btn btn-primary me-2" onclick="imprimirDireto()">Imprimir tudo</button>
+                <button class="btn btn-outline-secondary" onclick="selecionarImagens()">Selecionar imagens</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Escolher Layout Impressão -->
+<div class="modal fade" id="modalLayoutImpressao" tabindex="-1" aria-labelledby="tituloModalLayoutImpressao"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="form-layout-impressao">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="tituloModalLayoutImpressao">Escolher Layout de Impressão</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <label for="layout-tudo" class="form-label">Layout de Impressão:</label>
+                    <select class="form-select w-auto d-inline-block" id="layout-tudo" name="layout">
+                        <option value="2x3" selected>3 linhas x 2 colunas (6 por página)</option>
+                        <option value="1x1">1 linha x 1 coluna (1 por página)</option>
+                        <option value="2x2">2 linhas x 2 colunas (4 por página)</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Imprimir</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Paciente -->
+<div class="modal fade" id="modalEditarPaciente" tabindex="-1" aria-labelledby="tituloModalEditar" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="form-editar-paciente">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="tituloModalEditar">Editar Paciente</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="edit-pat_id" name="pat_id">
+                    <div class="mb-3">
+                        <label for="edit-pat_name" class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="edit-pat_name" name="pat_name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-pat_birthdate" class="form-label">Nascimento</label>
+                        <input type="date" class="form-control" id="edit-pat_birthdate" name="pat_birthdate">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-pat_sex" class="form-label">Sexo</label>
+                        <input type="text" class="form-control" id="edit-pat_sex" name="pat_sex">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success">Salvar</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Estudo -->
+<div class="modal fade" id="modalEditarEstudo" tabindex="-1" aria-labelledby="tituloModalEditarEstudo"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="form-editar-estudo">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="tituloModalEditarEstudo">Editar Estudo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="edit-study-id" name="study_id">
+                    <div class="mb-3">
+                        <label for="edit-company" class="form-label">Empresa</label>
+                        <input type="text" class="form-control" id="edit-company" name="company">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-ref_physician" class="form-label">Médico Solicitante</label>
+                        <input type="text" class="form-control" id="edit-ref_physician" name="ref_physician">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-procedure_desc" class="form-label">Procedimento</label>
+                        <input type="text" class="form-control" id="edit-procedure_desc" name="procedure_desc">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-procedure_code" class="form-label">Código do Procedimento</label>
+                        <input type="text" class="form-control" id="edit-procedure_code" name="procedure_code">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success">Salvar</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Verifica se há alerta de acesso negado
+        const alertMessage = "{{ alert | default('') }}";
+        if (alertMessage === "access_denied") {
+            window.onload = function () {
+                showAlert('Acesso negado. Apenas administradores podem realizar esta ação.', 'danger');
+            };
+        }
+
+        // Inicializa todos os dropdowns do Bootstrap
+        var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
+        var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
+            return new bootstrap.Dropdown(dropdownToggleEl);
+        });
+
+        // Duplo clique na linha do paciente para carregar local
+        const tableBody = document.querySelector('.table-container table tbody');
+        if (tableBody) {
+            tableBody.querySelectorAll('tr').forEach(row => {
+                // Ignora linhas de detalhes expansíveis
+                if (row.classList.contains('expanded-row')) return;
+
+                row.addEventListener('dblclick', function (event) {
+                    const cell = event.target.closest('td');
+                    // Ignora o duplo clique no expansor (primeira coluna) e na coluna de ações (última)
+                    if (cell && (cell.cellIndex === 0 || cell.cellIndex === (row.cells.length - 1))) {
+                        return;
+                    }
+                    const studyPk = row.dataset.studyPk;
+                    if (studyPk) {
+                        // feedback imediato de duplo clique detectado
+                        row.classList.add('row-activated');
+                        showAlert('Abrindo visualizador…', 'info');
+                        setTimeout(() => row.classList.remove('row-activated'), 800);
+                        // aciona carregar local
+                        abrirViewer(studyPk);
+                    }
+                });
+            });
+        }
+
+        // Função para abrir o modal de impressão
+        window.abrirModal = function (studyPk) {
+            var modal = new bootstrap.Modal(document.getElementById('modalEscolhaImpressao'));
+            window.currentStudyPk = studyPk; // Armazena o studyPk para uso posterior
+            modal.show();
+        }
+
+        // Função para imprimir todas as imagens
+        window.imprimirDireto = function () {
+            if (window.currentStudyPk) {
+                var modal = new bootstrap.Modal(document.getElementById('modalLayoutImpressao'));
+                modal.show();
+            }
+        }
+        // Submissão do layout de impressão para todas as imagens
+        var formLayout = document.getElementById('form-layout-impressao');
+        if (formLayout) {
+            formLayout.addEventListener('submit', function (e) {
+                e.preventDefault();
+                var layout = document.getElementById('layout-tudo').value;
+                if (window.currentStudyPk) {
+                    var url = '/generate_pdf/' + window.currentStudyPk + '?layout=' + layout;
+                    window.open(url, '_blank');
+                    var modal = bootstrap.Modal.getInstance(document.getElementById('modalLayoutImpressao'));
+                    if (modal) modal.hide();
+                }
+            });
+        }
+
+        // Função para selecionar imagens específicas
+        window.selecionarImagens = function () {
+            if (window.currentStudyPk) {
+                window.open('/select_images/' + window.currentStudyPk, '_blank');
+            }
+        }
+
+        // Função para abrir o visualizador Local com weasis
+        window.abrirViewer = function (studyPk) {
+            fetch(`/teste_study_iuid/${studyPk}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.study_iuid) {
+                        const url = `weasis://?$dicom:get -w "http://{{SERVER_IP}}:8080/weasis-pacs-connector/manifest?studyUID=${data.study_iuid}"`;
+                        window.location.href = url;
+                    } else {
+                        alert('Erro ao obter o Study IUID');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao acessar o visualizador');
+                });
+        }
+
+        // Função para abrir o visualizador web com weasis
+        window.abrirViewerWeb = function (studyPk) {
+            fetch(`/teste_study_iuid/${studyPk}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.study_iuid) {
+                        const url = `jnlp://{{SERVER_IP}}:8080/weasis-pacs-connector/viewer?studyUID=${data.study_iuid}`;
+                        window.location.href = url;
+                    } else {
+                        alert('Erro ao obter o Study IUID');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao acessar o visualizador');
+                });
+        }
+
+                // Função para abrir o visualizador web OHIF
+        window.abrirViewerOHIFWeb = function (studyPk) {
+            fetch(`/teste_study_iuid/${studyPk}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.study_iuid) {
+                        const url = `http://{{SERVER_IP}}:8042/ohif/viewer?StudyInstanceUIDs=${data.study_iuid}`;
+                        window.open(url, '_blank');
+                    } else {
+                        alert('Erro ao obter o Study IUID');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao acessar o visualizador');
+                });
+        }
+
+        // Código JavaScript para outras funcionalidades
+
+        // Função para exibir alertas
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alert-container');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.role = 'alert';
+            alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+            alertContainer.innerHTML = '';
+            alertContainer.appendChild(alertDiv);
+
+            // Auto-hide after 3 seconds
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 3000);
+        }
+
+        // Função para abrir o modal de edição
+        window.abrirModalEditar = function (pat_id, pat_name, pat_birthdate, pat_sex) {
+            document.getElementById('edit-pat_id').value = pat_id;
+            document.getElementById('edit-pat_name').value = pat_name;
+            // Converte a data do formato dd/mm/yyyy para yyyy-mm-dd
+            if (pat_birthdate && pat_birthdate !== 'None') {
+                const parts = pat_birthdate.split('/');
+                if (parts.length === 3) {
+                    const formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                    document.getElementById('edit-pat_birthdate').value = formattedDate;
+                }
+            }
+            document.getElementById('edit-pat_sex').value = pat_sex;
+            var editModal = new bootstrap.Modal(document.getElementById('modalEditarPaciente'));
+            editModal.show();
+        }
+
+        // Função para abrir o laudo
+        window.abrirLaudo = function (protocolo) {
+            window.location.href = '/laudo?protocolo=' + protocolo;
+        }
+
+        // Função para abrir o modal de edição de estudo
+        window.abrirModalEditarEstudo = function (study_fk, company, refPhysician, procedureDesc, procedureCode) {
+            document.getElementById('edit-study-id').value = study_fk;
+            document.getElementById('edit-company').value = company;
+            document.getElementById('edit-ref_physician').value = refPhysician;
+            document.getElementById('edit-procedure_desc').value = procedureDesc;
+            document.getElementById('edit-procedure_code').value = procedureCode;
+            var editEstudoModal = new bootstrap.Modal(document.getElementById('modalEditarEstudo'));
+            editEstudoModal.show();
+        }
+
+        // Handler para o formulário de edição de estudo
+        document.getElementById('form-editar-estudo').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const formData = {
+                pk: document.getElementById('edit-study-id').value,
+                company: document.getElementById('edit-company').value,
+                ref_physician: document.getElementById('edit-ref_physician').value,
+                procedure_desc: document.getElementById('edit-procedure_desc').value,
+                procedure_code: document.getElementById('edit-procedure_code').value
+            };
+
+            fetch('/editar_estudo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+                .then(response => {
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('text/html')) {
+                        throw new Error('Acesso negado. Apenas administradores podem realizar esta ação.');
+                    }
+                    if (!response.ok) {
+                        throw new Error('Erro na resposta do servidor');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    showAlert(data.message, 'success');
+                    var modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarEstudo'));
+                    modal.hide();
+                    // Recarrega a página para mostrar as alterações
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                })
+                .catch(error => {
+                    showAlert(error.message, 'danger');
+                });
+        });
+
+        // Função para deletar paciente
+        window.deletarPaciente = function (pat_id, pat_name, pat_birthdate, pat_sex, study_uid) {
+            if (confirm('Tem certeza que deseja excluir este paciente?')) {
+                // Converter a data de dd/MM/yyyy para yyyyMMdd
+                let formattedDate = pat_birthdate;
+                if (pat_birthdate && pat_birthdate !== 'None') {
+                    const parts = pat_birthdate.split('/');
+                    if (parts.length === 3) {
+                        formattedDate = `${parts[2]}${parts[1].padStart(2, '0')}${parts[0].padStart(2, '0')}`;
+                    }
+                }
+
+                fetch('/deletar_paciente', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        pat_id: pat_id,
+                        pat_name: pat_name,
+                        pat_birthdate: formattedDate,
+                        pat_sex: pat_sex,
+                        study_uid: study_uid
+                    })
+                })
+                    .then(response => {
+                        // Verifica se a resposta é um redirecionamento (HTML) em vez de JSON
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('text/html')) {
+                            // Se retornou HTML, significa que foi redirecionado (usuário sem permissão)
+                            throw new Error('Acesso negado. Apenas administradores podem realizar esta ação.');
+                        }
+                        if (!response.ok) {
+                            throw new Error('Erro na resposta do servidor');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.message == 'Paciente excluído com sucesso!') {
+                            showAlert('Paciente excluído com sucesso!', 'success');
+                            setTimeout(() => {
+                                location.reload();
+                            }, 2000);
+                        } else {
+                            throw new Error(data.error || 'Erro ao excluir paciente');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro:', error);
+                        showAlert(error.message, 'danger');
+                    });
+            }
+        }
+
+        // Handler para o formulário de edição de paciente
+        document.getElementById('form-editar-paciente').addEventListener('submit', function (e) {
+            e.preventDefault();
+            let birthdate = document.getElementById('edit-pat_birthdate').value;
+            // Converte a data do formato yyyy-mm-dd para yyyymmdd
+            if (birthdate) {
+                birthdate = birthdate.replace(/-/g, '');
+            }
+            const formData = {
+                pat_id: document.getElementById('edit-pat_id').value,
+                pat_name: document.getElementById('edit-pat_name').value,
+                pat_birthdate: birthdate,
+                pat_sex: document.getElementById('edit-pat_sex').value
+            };
+            fetch('/editar_paciente', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erro na resposta do servidor');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.message == 'Paciente atualizado com sucesso!') {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarPaciente'));
+                        modal.hide();
+                        showAlert('Paciente atualizado com sucesso!', 'success');
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1000);
+                    } else {
+                        throw new Error(data.error || 'Erro ao atualizar paciente');
+                    }
+                })
+                .catch(error => {
+                    showAlert(error.message, 'danger');
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    showAlert('Erro ao atualizar paciente', 'danger');
+                });
+        });
+    });
+
+    // Modal de Download
+    function abrirModalDownload(studyPk) {
+        document.getElementById('downloadStudyPk').value = studyPk;
+        const modal = new bootstrap.Modal(document.getElementById('downloadModal'));
+        modal.show();
+    }
+
+    function downloadImagens() {
+        const studyPk = document.getElementById('downloadStudyPk').value;
+        const formato = document.getElementById('formatoDownload').value;
+
+        if (!formato) {
+            showAlert('Por favor, selecione um formato para o download.', 'warning');
+            return;
+        }
+
+        // Criar um link temporário para download
+        const link = document.createElement('a');
+        link.href = `/download-imagens/${studyPk}?formato=${formato}`;
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Fechar modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('downloadModal'));
+        modal.hide();
+
+        showAlert('Download iniciado!', 'success');
+    }
+</script>
+
+<!-- Modal de Download -->
+<div class="modal fade" id="downloadModal" tabindex="-1" aria-labelledby="downloadModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="downloadModalLabel">Download de Imagens</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label for="formatoDownload" class="form-label">Formato do Download:</label>
+                        <select class="form-select" id="formatoDownload" required>
+                            <option value="">Selecione o formato</option>
+                            <option value="jpg">JPG</option>
+                            <option value="dicom">DICOM</option>
+                        </select>
+                    </div>
+                    <input type="hidden" id="downloadStudyPk" value="">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="downloadImagens()">Download</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
+var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
+return new bootstrap.Dropdown(dropdownToggleEl);
+});
+
+// Duplo clique na linha do paciente para carregar local
+const tableBody = document.querySelector('.table-container table tbody');
+if (tableBody) {
+tableBody.querySelectorAll('tr').forEach(row => {
+// Ignora linhas de detalhes expansíveis
+if (row.classList.contains('expanded-row')) return;
+
+row.addEventListener('dblclick', function (event) {
+const cell = event.target.closest('td');
+// Ignora o duplo clique no expansor (primeira coluna) e na coluna de ações (última)
+if (cell && (cell.cellIndex === 0 || cell.cellIndex === (row.cells.length - 1))) {
+return;
+}
+const studyPk = row.dataset.studyPk;
+if (studyPk) {
+abrirViewer(studyPk);
+}
+});
+});
+}

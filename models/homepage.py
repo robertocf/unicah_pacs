@@ -216,7 +216,7 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
     conn.close()
 
     return render_template(
-        "homepage.html",
+        "estudos.html",
         SERVER_IP=SERVER_IP,
         patients=patients,
         visible_count=len(patients),

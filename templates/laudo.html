@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Laudo{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-3">Laudo</h2>
+  <p class="text-muted">Protocolo: <code>{{ protocolo }}</code></p>
+
+  <div class="row">
+    <!-- Painel esquerdo com dados do paciente -->
+    <div class="col-lg-3 col-md-4 mb-4">
+      <div class="card h-100">
+        <div class="card-header">Dados do Paciente</div>
+        <div class="card-body">
+          <div class="mb-2"><strong>Nome:</strong> {{ paciente and paciente.nome or '—' }}</div>
+          <div class="mb-2"><strong>Data de Nascimento:</strong> {{ paciente and paciente.data_nascimento or '—' }}</div>
+          <div class="mb-2"><strong>Sexo:</strong> {{ paciente and paciente.sexo or '—' }}</div>
+          <div class="mb-2"><strong>Idade:</strong> {{ paciente and paciente.idade or '—' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Área principal com editor centralizado -->
+    <div class="col-lg-9 col-md-8">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <div class="mb-3">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }}" role="alert">{{ message }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endwith %}
+
+      <div class="card mb-4">
+        <div class="card-header">Editor de Laudo</div>
+        <div class="card-body">
+          <div class="toolbar mb-3 d-flex flex-wrap gap-2 align-items-center">
+            <label class="me-2">Fonte:</label>
+            <select id="fontFamily" class="form-select form-select-sm w-auto">
+              <option value="Arial">Arial</option>
+              <option value="Times New Roman">Times New Roman</option>
+              <option value="Calibri">Calibri</option>
+              <option value="Verdana">Verdana</option>
+              <option value="Courier New">Courier New</option>
+            </select>
+
+            <label class="ms-3 me-2">Tamanho:</label>
+            <select id="fontSize" class="form-select form-select-sm w-auto">
+              <option value="12">12</option>
+              <option value="14" selected>14</option>
+              <option value="16">16</option>
+              <option value="18">18</option>
+              <option value="24">24</option>
+            </select>
+
+            <div class="btn-group ms-3" role="group">
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-cmd="bold"><i class="fas fa-bold"></i></button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-cmd="italic"><i class="fas fa-italic"></i></button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-cmd="underline"><i class="fas fa-underline"></i></button>
+            </div>
+
+            <div class="btn-group ms-3" role="group">
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-cmd="justifyLeft"><i class="fas fa-align-left"></i></button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-cmd="justifyCenter"><i class="fas fa-align-center"></i></button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-cmd="justifyRight"><i class="fas fa-align-right"></i></button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-cmd="justifyFull"><i class="fas fa-align-justify"></i></button>
+            </div>
+          </div>
+
+          <div id="editor" contenteditable="true" class="form-control" style="min-height: 500px;">
+            {% if laudo and laudo.conteudo %}{{ laudo.conteudo | safe }}{% endif %}
+          </div>
+
+          <form id="formLaudo" method="POST" action="{{ url_for('laudo_page') }}" class="mt-3">
+            <input type="hidden" name="protocolo" value="{{ protocolo }}">
+            <input type="hidden" name="conteudo" id="conteudoHidden">
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-secondary" onclick="submitLaudo('draft')">Pré-salvar</button>
+              <button type="button" class="btn btn-primary" onclick="submitLaudo('save')">Gravar</button>
+              <button type="button" class="btn btn-success" onclick="submitLaudo('sign')">Assinar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">Gravação de Áudio</div>
+        <div class="card-body">
+          <div class="d-flex gap-2 align-items-center mb-2">
+            <button id="startBtn" class="btn btn-outline-primary btn-sm" type="button">Iniciar gravação</button>
+            <button id="stopBtn" class="btn btn-outline-danger btn-sm" type="button" disabled>Parar</button>
+            <button id="saveAudioBtn" class="btn btn-outline-success btn-sm" type="button" disabled>Salvar áudio</button>
+          </div>
+          <audio id="audioPreview" controls class="w-100" style="display:none;"></audio>
+          {% if laudo and laudo.audio_path %}
+            <p class="mt-2">Último áudio salvo: <a href="{{ laudo.audio_path }}" target="_blank">{{ laudo.audio_path }}</a></p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const editor = document.getElementById('editor');
+  const fontFamily = document.getElementById('fontFamily');
+  const fontSize = document.getElementById('fontSize');
+
+  // Toolbar actions
+  document.querySelectorAll('[data-cmd]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cmd = btn.getAttribute('data-cmd');
+      document.execCommand(cmd, false, null);
+      editor.focus();
+    });
+  });
+  fontFamily.addEventListener('change', () => {
+    document.execCommand('fontName', false, fontFamily.value);
+    editor.focus();
+  });
+  fontSize.addEventListener('change', () => {
+    // execCommand fontSize uses 1-7; apply via inline style instead
+    editor.style.fontSize = fontSize.value + 'px';
+    editor.style.fontFamily = fontFamily.value;
+    editor.focus();
+  });
+
+  // Submit
+  window.submitLaudo = function(action) {
+    document.getElementById('conteudoHidden').value = editor.innerHTML;
+    const form = document.getElementById('formLaudo');
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'action';
+    input.value = action;
+    form.appendChild(input);
+    form.submit();
+  }
+
+  // Audio Recording
+  let mediaRecorder;
+  let recordedChunks = [];
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const saveBtn = document.getElementById('saveAudioBtn');
+  const audioPreview = document.getElementById('audioPreview');
+
+  startBtn.addEventListener('click', async () => {
+    recordedChunks = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+        const url = URL.createObjectURL(blob);
+        audioPreview.src = url;
+        audioPreview.style.display = 'block';
+        saveBtn.disabled = false;
+      };
+      mediaRecorder.start();
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+    } catch (err) {
+      alert('Não foi possível acessar o microfone: ' + err.message);
+    }
+  });
+
+  stopBtn.addEventListener('click', () => {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+    const formData = new FormData();
+    formData.append('protocolo', '{{ protocolo }}');
+    formData.append('audio', blob, 'rec.webm');
+
+    try {
+      const resp = await fetch('{{ url_for('laudo_audio_upload') }}', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await resp.json();
+      if (data && data.success) {
+        alert('Áudio salvo com sucesso.');
+      } else {
+        alert('Falha ao salvar áudio: ' + (data && data.message ? data.message : 'erro desconhecido'));
+      }
+    } catch (e) {
+      alert('Erro ao enviar áudio: ' + e.message);
+    }
+  });
+});
+</script>
+{% endblock %}
