@@ -12,6 +12,7 @@
 
     <!-- Estilos globais -->
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/homepage.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/agenda.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
 
@@ -37,7 +38,7 @@
                         <li class="nav-item">
                             <a class="nav-link {% if request.path.startswith('/estudos') or request.path.startswith('/estudos') %}active{% endif %}"
                                href="/estudos">Estudos</a>
-                        </li>
+                        </li>          
                         {% if permissions.get('visualizar_relatorios') %}
                         <li class="nav-item">
                             <a class="nav-link {% if request.path == '/relatorios' %}active{% endif %}"
@@ -85,7 +86,6 @@
                                 {% if permissions.get('acessar_armazenamento') %}
                                 <li><a class="dropdown-item" href="/configuracoes/armazenamento"><i class="fas fa-hdd me-2"></i>Armazenamento</a></li>
                                 {% endif %}
-                                <li><a class="dropdown-item" href="/configuracoes/agenda"><i class="fa-regular fa-calendar-check me-2"></i>Configurar Agenda</a></li>
                             </ul>
                         </li>
                         {% endif %}

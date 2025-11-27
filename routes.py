@@ -12,7 +12,7 @@ from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 from db import get_db_connection
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import hashlib
 import uuid
 import threading
@@ -364,14 +364,100 @@ def homepage():
 def generate_pdf(study_uid):
     return gerar_pdf_completo(study_uid)
 
-@app.route("/laudo")
+@app.route("/laudo", methods=["GET", "POST"])
 @login_required
 @admin_required
 def editor():
-    protocolo = request.args.get("protocolo")
+    protocolo = request.values.get("protocolo") or request.args.get("protocolo")
     if not protocolo:
         return "Protocolo não fornecido", 400
-    return render_template("editor.html")
+
+    # POST: processa ações do laudo (rascunho, salvar, assinar)
+    if request.method == 'POST':
+        action = request.form.get('action')
+        conteudo = request.form.get('conteudo')
+        try:
+            # Aqui você pode persistir o laudo conforme sua regra
+            # Ex.: inserir/atualizar tabela laudos_app com (protocolo, conteudo, status)
+            # No momento, apenas emite mensagens de status.
+            if action == 'draft':
+                flash('Rascunho salvo.', 'success')
+            elif action == 'save':
+                flash('Laudo gravado com sucesso.', 'success')
+            elif action == 'sign':
+                flash('Laudo assinado.', 'success')
+            else:
+                flash('Ação inválida ao salvar laudo.', 'error')
+        except Exception as e:
+            print(f"Erro ao processar laudo: {e}")
+            flash('Erro ao processar laudo.', 'error')
+        # Redireciona para GET para evitar reenvio em refresh
+        return redirect(url_for('editor', protocolo=protocolo))
+
+    # GET: carrega dados do paciente
+    paciente = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT 
+                p.pat_id,
+                split_part(p.pat_name, '^^^^', 1) AS pat_name,
+                CASE 
+                    WHEN LENGTH(p.pat_birthdate) = 8 AND p.pat_birthdate ~ '^[0-9]{8}$' 
+                    THEN to_char(to_date(p.pat_birthdate, 'YYYYMMDD'), 'DD/MM/YYYY')
+                    ELSE ''
+                END as pat_birthdate,
+                p.pat_sex,
+                EXTRACT(YEAR FROM AGE(TO_DATE(p.pat_birthdate, 'YYYYMMDD'))) || ' anos' AS idade
+            FROM patient p
+            JOIN study s ON s.patient_fk = p.pk
+            WHERE s.pk = %s
+            LIMIT 1
+            """,
+            (protocolo,)
+        )
+        row = cur.fetchone()
+        if row:
+            paciente = {
+                'pat_id': row[0],
+                'nome': row[1],
+                'data_nascimento': row[2],
+                'sexo': row[3],
+                'idade': row[4],
+            }
+    except Exception as e:
+        print(f"Erro ao carregar dados do paciente: {e}")
+    finally:
+        try:
+            cur.close()
+            conn.close()
+        except Exception:
+            pass
+
+    return render_template("laudo.html", protocolo=protocolo, paciente=paciente, laudo=None)
+
+@app.route('/laudo/audio_upload', methods=['POST'])
+@login_required
+@admin_required
+def laudo_audio_upload():
+    try:
+        protocolo = request.form.get('protocolo')
+        audio = request.files.get('audio')
+        if not audio or not protocolo:
+            return jsonify({'success': False, 'message': 'Dados insuficientes'}), 400
+
+        # Salva em static/temp com nome seguro + timestamp
+        filename = secure_filename(f"{protocolo}_" + audio.filename)
+        os.makedirs(os.path.join('static', 'temp'), exist_ok=True)
+        save_path = os.path.join('static', 'temp', filename)
+        audio.save(save_path)
+        audio_url = url_for('static', filename=f'temp/{filename}', _external=False)
+        return jsonify({'success': True, 'audio_path': audio_url})
+    except Exception as e:
+        print(f"Erro no upload de áudio: {e}")
+        return jsonify({'success': False, 'message': 'Falha ao salvar áudio'}), 500
 
 @app.route("/select_images/<study_uid>")
 @login_required
@@ -2004,39 +2090,97 @@ def configuracoes_permissoes():
     roles = sorted({u.role for u in usuarios if getattr(u, 'role', None)})
     return render_template('permissoes.html', usuarios=usuarios, roles=roles, permission_defs=list_permission_definitions())
 
-# Página Configurar Agenda
-@app.route('/configuracoes/agenda', methods=['GET', 'POST'])
+
+@app.route('/agenda', methods=['GET'])
 @login_required
-@admin_required
-def configurar_agenda():
-    if request.method == 'POST':
-        action = request.form.get('action')
-        if action == 'abrir_agenda':
-            data_inicio = request.form.get('data_inicio')
-            hora_inicio = request.form.get('hora_inicio')
-            data_fim = request.form.get('data_fim')
-            hora_fim = request.form.get('hora_fim')
-            intervalo = request.form.get('intervalo')
-            responsavel = request.form.get('responsavel')
-
-            if not all([data_inicio, hora_inicio, data_fim, hora_fim, intervalo, responsavel]):
-                flash('Preencha todos os campos para abrir a agenda.', 'error')
-            else:
-                flash(f"Abertura registrada: {data_inicio} {hora_inicio} → {data_fim} {hora_fim}, intervalo {intervalo} min, responsável {responsavel}", 'success')
-
-        elif action == 'novo_feriado':
-            feriado_data = request.form.get('feriado_data', '')
-            feriado_nome = request.form.get('feriado_nome', '')
-            feriado_tipo = request.form.get('feriado_tipo', '')
-
-            if not feriado_data:
-                flash('Informe a data do feriado.', 'error')
-            elif not feriado_nome:
-                flash('Informe o nome do feriado.', 'error')
-            else:
-                flash(f"Feriado cadastrado: {feriado_nome} ({feriado_tipo}) em {feriado_data}", 'success')
-
+def agenda():
+    # Data selecionada (padrão: hoje)
+    data_param = request.args.get('data')
+    try:
+        if data_param:
+            selected_date = datetime.strptime(data_param, '%Y-%m-%d').date()
         else:
-            flash('Ação inválida.', 'error')
+            selected_date = datetime.today().date()
+    except Exception:
+        selected_date = datetime.today().date()
+    data_str = selected_date.isoformat()
 
-    return render_template('configurar_agenda.html')
+    entries = []
+    conn = None
+    cur = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        # Seleciona aberturas que abrangem a data selecionada
+        cur.execute(
+            """
+            SELECT id, profissional_nome, hora_abertura, hora_fechamento, intervalo_minutos
+            FROM agenda_aberturas_app
+            WHERE %s::date BETWEEN DATE(data_abertura) AND COALESCE(DATE(data_encerramento), DATE(data_abertura))
+            ORDER BY profissional_nome, hora_abertura
+            """,
+            (data_str,)
+        )
+        rows = cur.fetchall()
+
+        # Função para gerar slots (horários) pela janela de abertura
+        def gerar_slots(h_ini, h_fim, passo_min):
+            # h_ini/h_fim podem vir como time ou string; normaliza
+            try:
+                if isinstance(h_ini, str):
+                    h_ini_dt = datetime.strptime(h_ini, '%H:%M:%S')
+                else:
+                    h_ini_dt = datetime.combine(datetime.today().date(), h_ini)
+                if isinstance(h_fim, str):
+                    h_fim_dt = datetime.strptime(h_fim, '%H:%M:%S')
+                else:
+                    h_fim_dt = datetime.combine(datetime.today().date(), h_fim)
+            except Exception:
+                return []
+            if not passo_min or passo_min <= 0:
+                return []
+            slots = []
+            cur_t = h_ini_dt
+            delta = timedelta(minutes=int(passo_min))
+            # Gera inclusive início, exclusivo fim
+            while cur_t < h_fim_dt:
+                slots.append(cur_t.strftime('%H:%M'))
+                cur_t += delta
+            return slots
+
+        for r in rows:
+            entry = {
+                'id': r[0],
+                'profissional_nome': r[1],
+                'hora_abertura': r[2],
+                'hora_fechamento': r[3],
+                'intervalos_minutos': r[4],
+            }
+            entry['slots'] = gerar_slots(entry['hora_abertura'], entry['hora_fechamento'], entry['intervalos_minutos'])
+            # Ajusta exibição de horas como string HH:MM
+            try:
+                entry['hora_abertura'] = (
+                    entry['hora_abertura'].strftime('%H:%M') if hasattr(entry['hora_abertura'], 'strftime') else str(entry['hora_abertura'])[:5]
+                )
+                entry['hora_fechamento'] = (
+                    entry['hora_fechamento'].strftime('%H:%M') if hasattr(entry['hora_fechamento'], 'strftime') else str(entry['hora_fechamento'])[:5]
+                )
+            except Exception:
+                pass
+            entries.append(entry)
+    except Exception as e:
+        print(f'Erro ao carregar agenda: {e}')
+        flash('Erro ao carregar agenda do dia.', 'error')
+    finally:
+        if cur:
+            try:
+                cur.close()
+            except Exception:
+                pass
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    return render_template('agenda.html', data=data_str, entries=entries)
