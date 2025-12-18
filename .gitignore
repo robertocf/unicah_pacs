@@ -36,6 +36,7 @@ logs/
 # Arquivos de configuração local
 instance/
 .webassets-cache
+config.py
 
 # Arquivos de IDE
 .idea/
