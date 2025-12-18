@@ -38,47 +38,47 @@
                             <div class="col-md-1">
                                 <label for="id_paciente" class="form-label">ID</label>
                                 <input type="text" class="form-control" id="id_paciente" name="id_paciente"
-                                    value="{{ request.form.get('id_paciente', '') }}">
+                                    value="{{ id_paciente }}">
                             </div>
                             <div class="col-md-3">
                                 <label for="nome" class="form-label">Nome</label>
                                 <input type="text" class="form-control" id="nome" name="nome"
-                                    value="{{ request.form.get('nome', '') }}">
+                                    value="{{ nome }}">
                             </div>
                             <div class="col-md-2">
                                 <label for="sexo" class="form-label">Sexo</label>
                                 <select class="form-select" id="sexo" name="sexo">
                                     <option value="">Todos</option>
-                                    <option value="M" {% if request.form.get('sexo')=='M' %}selected{% endif %}>
+                                    <option value="M" {% if sexo=='M' %}selected{% endif %}>
                                         Masculino</option>
-                                    <option value="F" {% if request.form.get('sexo')=='F' %}selected{% endif %}>Feminino
+                                    <option value="F" {% if sexo=='F' %}selected{% endif %}>Feminino
                                     </option>
                                 </select>
                             </div>
                             <div class="col-md-2">
                                 <label for="data_atendimento" class="form-label">Data de Atendimento</label>
                                 <select class="form-select" id="data_atendimento" name="data_atendimento">
-                                    <option value="all" {% if request.form.get('data_atendimento')=='all' %}selected{%
+                                    <option value="all" {% if data_atendimento=='all' %}selected{%
                                         endif %}>Todas</option>
-                                    <option value="today" {% if request.form.get('data_atendimento')=='today'
+                                    <option value="today" {% if data_atendimento=='today'
                                         %}selected{% endif %}>Hoje</option>
-                                    <option value="last3days" {% if request.form.get('data_atendimento')=='last3days'
+                                    <option value="last3days" {% if data_atendimento=='last3days'
                                         %}selected{% endif %}>Últimos 3 dias</option>
-                                    <option value="last30days" {% if request.form.get('data_atendimento')=='last30days'
+                                    <option value="last30days" {% if data_atendimento=='last30days'
                                         %}selected{% endif %}>Últimos 30 dias</option>
                                 </select>
                             </div>
                             <div class="col-md-1">
                                 <label for="modalidade" class="form-label">Modalidade</label>
                                 <select class="form-select" id="modalidade" name="modalidade">
-                                    <option value="all" {% if request.form.get('modalidade')=='all' %}selected{% endif
+                                    <option value="all" {% if modalidade=='all' %}selected{% endif
                                         %}>
                                         Todas</option>
-                                    <option value="US" {% if request.form.get('modalidade')=='US' %}selected{% endif %}>
+                                    <option value="US" {% if modalidade=='US' %}selected{% endif %}>
                                         US</option>
-                                    <option value="CT" {% if request.form.get('modalidade')=='CT' %}selected{% endif %}>
+                                    <option value="CT" {% if modalidade=='CT' %}selected{% endif %}>
                                         CT</option>
-                                    <option value="DX" {% if request.form.get('modalidade')=='DX' %}selected{% endif %}>
+                                    <option value="DX" {% if modalidade=='DX' %}selected{% endif %}>
                                         DX</option>
                                 </select>
                             </div>

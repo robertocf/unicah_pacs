@@ -4,30 +4,35 @@ from config import SERVER_IP  # ajuste se o import do config for diferente
 from db import get_db_connection  # ajuste se o import da conexão for diferente
 
 def carregar_homepage(user_name, user_id, user_role=None, alert=None):  
-    id_paciente = (
-        request.form.get("id_paciente", "") if request.method == "POST" else ""
-    )
-    nome = request.form.get("nome", "") if request.method == "POST" else ""
-    data_nascimento = (
-        request.form.get("data_nascimento", "") if request.method == "POST" else ""
-    )
-    sexo = request.form.get("sexo", "") if request.method == "POST" else ""
-    data_atendimento = (
-        request.form.get("data_atendimento", "all")
-        if request.method == "POST"
-        else "all"
-    )
+    if request.method == "POST":
+        id_paciente = request.form.get("id_paciente", "")
+        nome = request.form.get("nome", "")
+        data_nascimento = request.form.get("data_nascimento", "")
+        sexo = request.form.get("sexo", "")
+        data_atendimento = request.form.get("data_atendimento", "all")
+        modalidade = request.form.get("modalidade", "all")
+        per_page_param = request.form.get("per_page", 10)
+    else:
+        id_paciente = request.args.get("id_paciente", "")
+        nome = request.args.get("nome", "")
+        data_nascimento = request.args.get("data_nascimento", "")
+        sexo = request.args.get("sexo", "")
+        data_atendimento = request.args.get("data_atendimento", "all")
+        modalidade = request.args.get("modalidade", "all")
+        per_page_param = request.args.get("per_page", 10)
 
-    modalidade = (
-        request.form.get("modalidade", "all") if request.method == "POST" else "all"
-    )
+    # Converter per_page_param para int se for numérico para coincidir com as opções do template
+    if per_page_param != "Todas":
+        try:
+            per_page_param = int(per_page_param)
+        except (ValueError, TypeError):
+            per_page_param = 10
 
-    page = int(request.args.get("page", 1))
-    per_page_param = (
-        request.form.get("per_page", 10)
-        if request.method == "POST"
-        else request.args.get("per_page", 10)
-    )
+    # Se for POST (nova pesquisa ou alteração de per_page), resetar para página 1
+    if request.method == "POST":
+        page = 1
+    else:
+        page = int(request.args.get("page", 1))
     
     per_page_options = [10, 15, 50, "Todas"]
     

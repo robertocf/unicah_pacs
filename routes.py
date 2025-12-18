@@ -2,7 +2,7 @@ import requests
 import pydicom
 import bcrypt
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
@@ -1764,7 +1764,7 @@ def download_imagens(study_pk):
     try:
         # Buscar informações do estudo
         cur.execute("""
-            SELECT s.study_iuid, p.pat_name, s.study_datetime
+            SELECT s.study_iuid, p.pat_name, s.study_datetime, p.pat_id, p.pat_birthdate, p.pat_sex
             FROM study s
             JOIN patient p ON p.pk = s.patient_fk
             WHERE s.pk = %s
@@ -1774,7 +1774,7 @@ def download_imagens(study_pk):
         if not study_info:
             return jsonify({'error': 'Estudo não encontrado'}), 404
         
-        study_iuid, pat_name, study_datetime = study_info
+        study_iuid, pat_name, study_datetime, pat_id, pat_birthdate, pat_sex = study_info
         
         # Nome e data seguros para arquivo
         safe_name = secure_filename(pat_name) or "Paciente"
@@ -1831,21 +1831,21 @@ def download_imagens(study_pk):
             for idx, (filepath, sop_iuid) in enumerate(images):
                 # Construir URL do arquivo DICOM
                 dicom_url = f"{dicom_base_url}{filepath}"
-                print(f"DEBUG: Tentando baixar: {dicom_url}")
+                #print(f"DEBUG: Tentando baixar: {dicom_url}")
                 
                 try:
                     # Baixar arquivo DICOM via HTTP com autenticação básica
                     auth = (f'{NGINX_AUTH_USER}', f'{NGINX_AUTH_PASSWORD}')  # Credenciais diretas para o Nginx
                     response = requests.get(dicom_url, auth=auth, timeout=10)
-                    print(f"DEBUG: Status da resposta: {response.status_code}")
+                    # print(f"DEBUG: Status da resposta: {response.status_code}")
                     if response.status_code == 200:
-                        print(f"DEBUG: Arquivo baixado com sucesso, tamanho: {len(response.content)} bytes")
+                       # print(f"DEBUG: Arquivo baixado com sucesso, tamanho: {len(response.content)} bytes")
                         if formato == 'dicom':
                             # Adicionar arquivo DICOM diretamente
                             arcname = f"image_{idx+1:04d}.dcm"
                             zipf.writestr(arcname, response.content)
                             files_added += 1
-                            print(f"DEBUG: Arquivo DICOM adicionado ao ZIP: {arcname}")
+                           # print(f"DEBUG: Arquivo DICOM adicionado ao ZIP: {arcname}")
                         else:
                             # Converter DICOM para JPG
                             try:
@@ -1863,6 +1863,34 @@ def download_imagens(study_pk):
                                     else:
                                         image = Image.fromarray(pixel_array)
                                     
+                                    # Adicionar informações do paciente
+                                    try:
+                                        # Preparar texto
+                                        fmt_birth = pat_birthdate.strftime('%d/%m/%Y') if hasattr(pat_birthdate, 'strftime') else str(pat_birthdate or '')
+                                        info_text = f"Nome: {pat_name} | ID: {pat_id}\nNasc: {fmt_birth} | Sexo: {pat_sex or ''}"
+                                        
+                                        # Configurar dimensões
+                                        header_height = 100
+                                        new_width = image.width
+                                        new_height = image.height + header_height
+                                        
+                                        # Criar nova imagem com fundo preto
+                                        new_image = Image.new("RGB", (new_width, new_height), "black")
+                                        new_image.paste(image, (0, header_height))
+                                        
+                                        # Desenhar texto
+                                        draw = ImageDraw.Draw(new_image)
+                                        try:
+                                            # Tentar usar Arial se disponível
+                                            font = ImageFont.truetype("arial.ttf", 40)
+                                        except:
+                                            font = ImageFont.load_default()
+                                        
+                                        draw.text((10, 15), info_text, fill="white", font=font)
+                                        image = new_image
+                                    except Exception as e:
+                                        print(f"Erro ao adicionar info na imagem: {e}")
+
                                     # Salvar como JPG em memória
                                     img_buffer = BytesIO()
                                     image.save(img_buffer, format='JPEG', quality=95)
