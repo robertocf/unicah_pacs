@@ -25,7 +25,7 @@ from werkzeug.utils import secure_filename
 import zipfile
 import tempfile
 import shutil
-from config import app, db, login_manager, SERVER_IP, NGINX_AUTH_PASSWORD, NGINX_AUTH_USER
+from config import app, db, login_manager, SERVER_IP, NGINX_AUTH_PASSWORD, NGINX_AUTH_USER, IMPORT_SEND_BAT, IMPORT_SEND_BIN_DIR, DCMSND_AE_TITLE, DCMSND_HOST, DCMSND_PORT
 from models.Users import User
 from services.disk_reaming import get_free_space_bytes, get_average_daily_usage_bytes, REPOSITORY_PATH, DAYS_TO_AVERAGE, format_bytes
 from services.storage_stats import get_storage_stats
@@ -269,7 +269,7 @@ dicom_thread = threading.Thread(target=iniciar_dicom_server, daemon=True)
 dicom_thread.start()
 
 # --- Configuração de importação DICOM para PACS ---
-IMPORT_UPLOAD_DIR = os.path.join(tempfile.gettempdir(), 'dicom_imports')
+IMPORT_UPLOAD_DIR = os.path.join('static', 'temp', 'dicom_imports')
 os.makedirs(IMPORT_UPLOAD_DIR, exist_ok=True)
 
 # Valores padrão para destino PACS (ajustáveis na UI)
@@ -618,49 +618,53 @@ def importar_dicom_enviar():
     data = request.get_json(silent=True) or {}
     batch_id = data.get('batch_id')
     selected_indices = data.get('selected_indices') or []
-    dest_host = data.get('dest_host') or DEFAULT_PACS_HOST
-    dest_port = int(data.get('dest_port') or DEFAULT_PACS_PORT)
-    dest_aet = data.get('dest_aet') or DEFAULT_PACS_AET
-    local_aet = data.get('local_aet') or DEFAULT_LOCAL_AET
-
     if not batch_id or batch_id not in IMPORT_SESSIONS:
         return jsonify({'message': 'Lote inválido ou expirado'}), 400
     session = IMPORT_SESSIONS[batch_id]
     groups = session.get('groups', [])
     if not groups:
         return jsonify({'message': 'Nenhum grupo disponível para envio'}), 400
-
     if not selected_indices:
         selected_indices = list(range(len(groups)))
-
-    ae = AE(ae_title=local_aet)
-    ae.requested_contexts = AllStoragePresentationContexts
-
-    assoc = ae.associate(dest_host, dest_port, ae_title=dest_aet)
-    if not assoc.is_established:
-        return jsonify({'message': 'Falha ao conectar ao PACS (Association não estabelecida)'}), 502
-
-    sent_ok = 0
-    sent_fail = 0
-    for i in selected_indices:
-        if i < 0 or i >= len(groups):
-            sent_fail += 1
-            continue
-        file_paths = groups[i].get('file_paths', [])
-        for path in file_paths:
-            try:
-                ds = pydicom.dcmread(path, force=True)
-                status = assoc.send_c_store(ds)
-                if status and status.Status in (0x0000,):
-                    sent_ok += 1
-                else:
-                    sent_fail += 1
-            except Exception:
-                sent_fail += 1
-
-    assoc.release()
-
-    return jsonify({'sent_ok': sent_ok, 'sent_fail': sent_fail})
+    target_dir = os.path.join('static', 'temp', 'dicom_send', batch_id)
+    os.makedirs(target_dir, exist_ok=True)
+    total_files = 0
+    try:
+        for i in selected_indices:
+            if i < 0 or i >= len(groups):
+                continue
+            file_paths = groups[i].get('file_paths', [])
+            for src in file_paths:
+                if not src or not os.path.exists(src):
+                    continue
+                dst = os.path.join(target_dir, os.path.basename(src))
+                shutil.copy2(src, dst)
+                total_files += 1
+        import subprocess
+        bin_dir = IMPORT_SEND_BIN_DIR if os.path.isdir(IMPORT_SEND_BIN_DIR) else os.path.dirname(IMPORT_SEND_BAT)
+        ae_host_port = f'{DCMSND_AE_TITLE}@{DCMSND_HOST}:{DCMSND_PORT}'
+        cmd_list = ['cmd', '/c', 'dcmsnd', ae_host_port, target_dir]
+        result = subprocess.run(cmd_list, cwd=bin_dir, capture_output=True, text=True, shell=False)
+        code = result.returncode
+        stdout = result.stdout or ''
+        stderr = result.stderr or ''
+        log_path = os.path.join(target_dir, 'send.log')
+        try:
+            with open(log_path, 'a', encoding='utf-8') as lf:
+                lf.write(f'bin_dir={bin_dir}\n')
+                lf.write(f'cmd={" ".join(cmd_list)}\n')
+                lf.write(f'return_code={code}\n')
+                if stdout:
+                    lf.write(f'stdout:\n{stdout}\n')
+                if stderr:
+                    lf.write(f'stderr:\n{stderr}\n')
+        except Exception:
+            pass
+        if code != 0:
+            return jsonify({'message': 'Falha na execução do dcmsnd', 'return_code': code, 'stdout': stdout, 'stderr': stderr, 'files_prepared': total_files, 'cmd': " ".join(cmd_list), 'bin_dir': bin_dir, 'log_path': log_path}), 500
+        return jsonify({'message': 'Envio iniciado', 'return_code': code, 'stdout': stdout, 'stderr': stderr, 'files_prepared': total_files, 'cmd': " ".join(cmd_list), 'bin_dir': bin_dir, 'log_path': log_path})
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
 
 @app.route("/deletar_paciente", methods=["POST"])
 @login_required

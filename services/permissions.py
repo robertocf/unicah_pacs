@@ -3,17 +3,19 @@ def get_user_permissions(user):
     Retorna um dicionário de permissões para o usuário.
     No futuro, isso será carregado do banco de dados.
     """
-    # Admin/Root têm todas as permissões
+    # Admin/Root têm permissões elevadas; Importar DICOM somente para Root
     role = (getattr(user, 'role', '') or '').lower()
     user_id = (getattr(user, 'user_id', '') or '').lower()
     name = (getattr(user, 'name', '') or '').lower()
-    if role in ('admin', 'root') or user_id == 'root' or name == 'root':
-        return {
+    is_root = role == 'root' or user_id == 'root' or name == 'root'
+    if role in ('admin', 'root') or is_root:
+        perms = {
             'visualizar_estudos': True,
             'editar_estudos': True,
             'acessar_menu_configuracoes': True,
             'excluir_estudos': True,
             'imprimir_estudos': True,
+            'acessar_importar_dicom': False,
             # Novos escopos de acesso
             'visualizar_relatorios': True,
             'acessar_gerencial': True,
@@ -23,6 +25,8 @@ def get_user_permissions(user):
             'acessar_armazenamento': True,
             'acessar_permissoes': True,
         }
+        perms['acessar_importar_dicom'] = True if is_root else False
+        return perms
 
     # Padrão para outros usuários (pode ser ajustado posteriormente)
     return {

@@ -45,10 +45,12 @@
                                 href="/relatorios">Relatórios</a>
                         </li>
                         {% endif %}
+                        {% if permissions.get('acessar_importar_dicom') %}
                         <li class="nav-item">
                             <a class="nav-link {% if request.path == '/dicom/importar' %}active{% endif %}"
                                 href="/dicom/importar">Importar</a>
                         </li>
+                        {% endif %}
                         {% if permissions.get('acessar_gerencial') %}
                         <li class="nav-item">
                             <a class="nav-link {% if request.path == '/gerencial' %}active{% endif %}"

@@ -209,11 +209,7 @@
 
     const payload = {
       batch_id: batchId,
-      selected_indices: selected,
-      dest_host: destHost,
-      dest_port: parseInt(destPort),
-      dest_aet: destAET,
-      local_aet: localAET
+      selected_indices: selected
     };
 
     btnEnviar.disabled = true;
@@ -226,12 +222,18 @@
         body: JSON.stringify(payload)
       });
       const data = await resp.json();
-      if (!resp.ok) throw new Error(data.message || 'Erro no envio');
-
-      const ok = data.sent_ok || 0;
-      const fail = data.sent_fail || 0;
-      alert(`Envio concluído. Sucesso: ${ok}, Falhas: ${fail}`);
-      statusText.textContent = `Envio concluído. Sucesso: ${ok}, Falhas: ${fail}`;
+      if (!resp.ok) {
+        const msg = data.message || 'Erro no envio';
+        alert(`Erro: ${msg}\ncmd: ${data.cmd || ''}\nreturn_code: ${data.return_code ?? ''}\nstdout:\n${data.stdout || ''}\nstderr:\n${data.stderr || ''}`);
+        throw new Error(msg);
+      }
+      const prepared = data.files_prepared || 0;
+      const cmd = data.cmd || '';
+      const rc = data.return_code ?? '';
+      const out = data.stdout || '';
+      const err = data.stderr || '';
+      alert(`Arquivos preparados: ${prepared}\ncmd: ${cmd}\nreturn_code: ${rc}\nstdout:\n${out}\nstderr:\n${err}`);
+      statusText.textContent = `Arquivos preparados: ${prepared}.`;
     } catch (e) {
       console.error(e);
       alert('Erro ao enviar ao PACS.');
