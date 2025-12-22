@@ -37,7 +37,7 @@ logs/
 instance/
 .webassets-cache
 config.py
-
+deploy.ps1
 # Arquivos de IDE
 .idea/
 .vscode/
