@@ -219,21 +219,28 @@
                     {% if per_page != 'Todas' %}
                     <div class="pagination">
                         {% if page > 1 %}
-                        <a
-                            href="{{ url_for('homepage', page=page-1, per_page=per_page, id_paciente=id_paciente, nome=nome, sexo=sexo, data_atendimento=data_atendimento, modalidade=modalidade) }}">Anterior</a>
+                        <a href="{{ url_for('homepage', page=page-1, per_page=per_page, id_paciente=id_paciente, nome=nome, sexo=sexo, data_atendimento=data_atendimento, modalidade=modalidade) }}">Anterior</a>
                         {% else %}
                         <a href="#" class="disabled">Anterior</a>
                         {% endif %}
-                        {% for p in range(1, total_pages + 1) %}
+                        {% set max_pages = 10 %}
+                        {% set start = page - 5 %}
+                        {% if start < 1 %}{% set start = 1 %}{% endif %}
+                        {% set end = start + max_pages - 1 %}
+                        {% if end > total_pages %}{% set end = total_pages %}{% endif %}
+                        {% if (end - start + 1) < max_pages %}
+                            {% set start = end - max_pages + 1 %}
+                            {% if start < 1 %}{% set start = 1 %}{% endif %}
+                        {% endif %}
+                        {% for p in range(start, end + 1) %}
                         <a href="{{ url_for('homepage', page=p, per_page=per_page, id_paciente=id_paciente, nome=nome, sexo=sexo, data_atendimento=data_atendimento, modalidade=modalidade) }}"
                             {% if p==page %}class="active" {% endif %}>{{ p }}</a>
                         {% endfor %}
-                        {% if page < total_pages %} <a
-                            href="{{ url_for('homepage', page=page+1, per_page=per_page, id_paciente=id_paciente, nome=nome, sexo=sexo, data_atendimento=data_atendimento, modalidade=modalidade) }}">
-                            Próximo</a>
-                            {% else %}
-                            <a href="#" class="disabled">Próximo</a>
-                            {% endif %}
+                        {% if page < total_pages %}
+                        <a href="{{ url_for('homepage', page=page+1, per_page=per_page, id_paciente=id_paciente, nome=nome, sexo=sexo, data_atendimento=data_atendimento, modalidade=modalidade) }}">Próximo</a>
+                        {% else %}
+                        <a href="#" class="disabled">Próximo</a>
+                        {% endif %}
                     </div>
                     {% endif %}
                     <!-- Rodapé: contador de linhas visíveis -->
