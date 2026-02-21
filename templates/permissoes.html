@@ -3,14 +3,15 @@
 {% block content %}
 <div class="container mt-4">
   <h2 class="mb-3">Permissões por Grupo</h2>
-  <p class="text-muted">Selecione o grupo e marque as permissões desejadas. O armazenamento em banco será implementado depois.</p>
+  <div id="alertContainer"></div>
 
   <div class="row mb-3">
     <div class="col-md-6">
       <label for="grupoSelect" class="form-label">Grupo</label>
-      <select id="grupoSelect" class="form-select">
+      <select id="grupoSelect" class="form-select" onchange="carregarPermissoes()">
+        <option value="">Selecione um grupo...</option>
         {% for g in roles %}
-          <option value="{{ g }}">{{ g }}</option>
+        <option value="{{ g }}">{{ g }}</option>
         {% endfor %}
       </select>
     </div>
@@ -19,11 +20,12 @@
   <div class="card">
     <div class="card-header">Permissões disponíveis</div>
     <div class="card-body">
-      <div class="row">
+      <div class="row" id="permissionList">
         {% for p in permission_defs %}
         <div class="col-md-4 mb-2">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="perm_{{ p.key }}" data-perm-key="{{ p.key }}">
+            <input class="form-check-input perm-checkbox" type="checkbox" id="perm_{{ p.key }}"
+              data-perm-key="{{ p.key }}">
             <label class="form-check-label" for="perm_{{ p.key }}">{{ p.label }}</label>
           </div>
         </div>
@@ -33,7 +35,101 @@
   </div>
 
   <div class="mt-3">
-    <button class="btn btn-primary" disabled>Salvar (em breve)</button>
+    <button id="btnSalvar" class="btn btn-primary" onclick="salvarPermissoes()" disabled>Salvar Permissões</button>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function carregarPermissoes() {
+    const role = document.getElementById('grupoSelect').value;
+    const btnSalvar = document.getElementById('btnSalvar');
+    const checkboxes = document.querySelectorAll('.perm-checkbox');
+
+    // Reset checkboxes
+    checkboxes.forEach(cb => cb.checked = false);
+
+    if (!role) {
+      btnSalvar.disabled = true;
+      return;
+    }
+
+    btnSalvar.disabled = false;
+
+    fetch(`/configuracoes/permissoes/buscar/${role}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          data.permissions.forEach(key => {
+            const cb = document.getElementById(`perm_${key}`);
+            if (cb) cb.checked = true;
+          });
+        } else {
+          mostrarAlerta('Erro ao carregar permissões: ' + data.message, 'danger');
+        }
+      })
+      .catch(error => {
+        console.error('Erro:', error);
+        mostrarAlerta('Erro de conexão ao buscar permissões', 'danger');
+      });
+  }
+
+  function salvarPermissoes() {
+    const role = document.getElementById('grupoSelect').value;
+    if (!role) return;
+
+    const checkboxes = document.querySelectorAll('.perm-checkbox:checked');
+    const permissions = Array.from(checkboxes).map(cb => cb.getAttribute('data-perm-key'));
+
+    const btnSalvar = document.getElementById('btnSalvar');
+    btnSalvar.disabled = true;
+    btnSalvar.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salvando...';
+
+    fetch('/configuracoes/permissoes/salvar', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        role: role,
+        permissions: permissions
+      })
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          mostrarAlerta('Permissões salvas com sucesso!', 'success');
+        } else {
+          mostrarAlerta('Erro ao salvar: ' + data.message, 'danger');
+        }
+      })
+      .catch(error => {
+        console.error('Erro:', error);
+        mostrarAlerta('Erro de conexão ao salvar', 'danger');
+      })
+      .finally(() => {
+        btnSalvar.disabled = false;
+        btnSalvar.textContent = 'Salvar Permissões';
+      });
+  }
+
+  function mostrarAlerta(mensagem, tipo) {
+    const container = document.getElementById('alertContainer');
+    container.innerHTML = `
+            <div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
+                ${mensagem}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+    // Auto remove alert after 5 seconds
+    setTimeout(() => {
+      const alert = container.querySelector('.alert');
+      if (alert) {
+        const bsAlert = new bootstrap.Alert(alert);
+        bsAlert.close();
+      }
+    }, 5000);
+  }
+</script>
 {% endblock %}

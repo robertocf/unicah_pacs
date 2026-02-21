@@ -377,13 +377,41 @@ def editor():
         action = request.form.get('action')
         conteudo = request.form.get('conteudo')
         try:
-            # Aqui você pode persistir o laudo conforme sua regra
-            # Ex.: inserir/atualizar tabela laudos_app com (protocolo, conteudo, status)
-            # No momento, apenas emite mensagens de status.
-            if action == 'draft':
-                flash('Rascunho salvo.', 'success')
-            elif action == 'save':
-                flash('Laudo gravado com sucesso.', 'success')
+            # Diretório para salvar os laudos/rascunhos
+            laudos_dir = os.path.join('static', 'laudos', 'rascunhos')
+            os.makedirs(laudos_dir, exist_ok=True)
+            file_path = os.path.join(laudos_dir, f"{protocolo}_rascunho.html")
+
+            if action == 'draft' or action == 'save':
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(conteudo)
+                
+                # Atualiza status no banco para 'R' (Rascunho)
+                conn = get_db_connection()
+                cur = conn.cursor()
+                try:
+                    cur.execute(
+                        """
+                        UPDATE study 
+                        SET study_custom1 = 'R', 
+                            study_custom2 = to_char(NOW() - INTERVAL '1 hour', 'DD/MM/YYYY HH24:MI:SS'),
+                            study_custom3 = %s 
+                        WHERE pk = %s
+                        """,
+                        (current_user.name, protocolo)
+                    )
+                    conn.commit()
+                except Exception as db_err:
+                    conn.rollback()
+                    print(f"Erro ao atualizar status do estudo: {db_err}")
+                finally:
+                    cur.close()
+                    conn.close()
+
+                if action == 'draft':
+                    flash('Rascunho salvo com sucesso.', 'success')
+                else:
+                    flash('Laudo gravado com sucesso.', 'success')
             elif action == 'sign':
                 flash('Laudo assinado.', 'success')
             else:
@@ -394,9 +422,17 @@ def editor():
         # Redireciona para GET para evitar reenvio em refresh
         return redirect(url_for('editor', protocolo=protocolo))
 
-    # GET: carrega dados do paciente
+    # GET: carrega dados do paciente e do estudo
     paciente = None
+    laudo_obj = None
     try:
+        # Tenta carregar rascunho existente
+        laudos_dir = os.path.join('static', 'laudos', 'rascunhos')
+        file_path = os.path.join(laudos_dir, f"{protocolo}_rascunho.html")
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                laudo_obj = {'conteudo': f.read()}
+
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
@@ -410,7 +446,12 @@ def editor():
                     ELSE ''
                 END as pat_birthdate,
                 p.pat_sex,
-                EXTRACT(YEAR FROM AGE(TO_DATE(p.pat_birthdate, 'YYYYMMDD'))) || ' anos' AS idade
+                EXTRACT(YEAR FROM AGE(TO_DATE(p.pat_birthdate, 'YYYYMMDD'))) || ' anos' AS idade,
+                s.study_desc,
+                to_char(s.study_datetime, 'DD/MM/YYYY HH24:MI:SS') as study_datetime,
+                s.accession_no,
+                s.ref_physician,
+                s.study_id
             FROM patient p
             JOIN study s ON s.patient_fk = p.pk
             WHERE s.pk = %s
@@ -426,6 +467,11 @@ def editor():
                 'data_nascimento': row[2],
                 'sexo': row[3],
                 'idade': row[4],
+                'procedimento': row[5],
+                'data_estudo': row[6],
+                'accession': row[7],
+                'medico': row[8],
+                'protocolo_id': row[9]
             }
     except Exception as e:
         print(f"Erro ao carregar dados do paciente: {e}")
@@ -436,7 +482,7 @@ def editor():
         except Exception:
             pass
 
-    return render_template("laudo.html", protocolo=protocolo, paciente=paciente, laudo=None)
+    return render_template("laudo.html", protocolo=protocolo, paciente=paciente, laudo=laudo_obj)
 
 @app.route('/laudo/audio_upload', methods=['POST'])
 @login_required
@@ -2113,14 +2159,45 @@ def gerencial_search():
         flash(f'Erro ao pesquisar logs: {str(e)}', 'error')
         return render_template('gerencial.html', logs=None)
 
-# Página de Permissões (layout, sem persistência)
+from models.RolePermission import RolePermission, get_permissions_by_role, update_role_permissions
+
+# Página de Permissões (Gerenciamento Dinâmico)
 @app.route('/configuracoes/permissoes', methods=['GET'])
 @login_required
 @admin_required
 def configuracoes_permissoes():
     usuarios = User.query.all()
     roles = sorted({u.role for u in usuarios if getattr(u, 'role', None)})
-    return render_template('permissoes.html', usuarios=usuarios, roles=roles, permission_defs=list_permission_definitions())
+    return render_template('permissoes.html', roles=roles, permission_defs=list_permission_definitions())
+
+@app.route('/configuracoes/permissoes/buscar/<role_name>', methods=['GET'])
+@login_required
+@admin_required
+def buscar_permissoes_role(role_name):
+    try:
+        # Se for admin e não tiver nada no banco, retorna o hardcoded como inicial
+        perms = get_permissions_by_role(role_name)
+        if not perms and role_name.lower() == 'admin':
+            # Fallback para exibição inicial na UI
+            perms = [d['key'] for d in list_permission_definitions() if d['key'] != 'acessar_importar_dicom']
+            
+        return jsonify({'success': True, 'permissions': perms})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/configuracoes/permissoes/salvar', methods=['POST'])
+@login_required
+@admin_required
+def salvar_permissoes_role():
+    data = request.get_json()
+    role_name = data.get('role')
+    permissions = data.get('permissions', [])
+    
+    if not role_name:
+        return jsonify({'success': False, 'message': 'Grupo não informado'})
+        
+    success, message = update_role_permissions(role_name, permissions)
+    return jsonify({'success': success, 'message': message})
 
 
 @app.route('/agenda', methods=['GET'])

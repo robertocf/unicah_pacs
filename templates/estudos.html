@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Pesquisa de Pacientes{% endblock %}
+{% block title %}PACS Unicah - Pesquisa de Pacientes{% endblock %}
 
 
 {% block extra_css %}
@@ -23,12 +23,37 @@
         /* amarelo claro para feedback */
         transition: background-color 0.6s ease;
     }
+
+    /* Column Resizing Styles */
+    .resizable {
+        position: relative;
+    }
+
+    .resizer {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 5px;
+        cursor: col-resize;
+        user-select: none;
+        height: 100%;
+        z-index: 1000;
+        /* Ensure it's above other content */
+    }
+
+    .resizer:hover,
+    .resizing {
+        border-right: 2px solid #007bff;
+        /* Visual feedback */
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <!-- Conteúdo Principal -->
 <div class="content-wrapper">
+    <input type="hidden" id="sort_by" value="{{ sort_by }}">
+    <input type="hidden" id="sort_order" value="{{ sort_order }}">
     <div class="container-fluid mt-3">
         <div class="row">
             <div class="col-12 main-content">
@@ -42,8 +67,7 @@
                             </div>
                             <div class="col-md-3">
                                 <label for="nome" class="form-label">Nome</label>
-                                <input type="text" class="form-control" id="nome" name="nome"
-                                    value="{{ nome }}">
+                                <input type="text" class="form-control" id="nome" name="nome" value="{{ nome }}">
                             </div>
                             <div class="col-md-2">
                                 <label for="sexo" class="form-label">Sexo</label>
@@ -58,21 +82,20 @@
                             <div class="col-md-2">
                                 <label for="data_atendimento" class="form-label">Data de Atendimento</label>
                                 <select class="form-select" id="data_atendimento" name="data_atendimento">
-                                    <option value="all" {% if data_atendimento=='all' %}selected{%
-                                        endif %}>Todas</option>
-                                    <option value="today" {% if data_atendimento=='today'
-                                        %}selected{% endif %}>Hoje</option>
-                                    <option value="last3days" {% if data_atendimento=='last3days'
-                                        %}selected{% endif %}>Últimos 3 dias</option>
-                                    <option value="last30days" {% if data_atendimento=='last30days'
-                                        %}selected{% endif %}>Últimos 30 dias</option>
+                                    <option value="all" {% if data_atendimento=='all' %}selected{% endif %}>Todas
+                                    </option>
+                                    <option value="today" {% if data_atendimento=='today' %}selected{% endif %}>Hoje
+                                    </option>
+                                    <option value="last3days" {% if data_atendimento=='last3days' %}selected{% endif %}>
+                                        Últimos 3 dias</option>
+                                    <option value="last30days" {% if data_atendimento=='last30days' %}selected{% endif
+                                        %}>Últimos 30 dias</option>
                                 </select>
                             </div>
                             <div class="col-md-1">
                                 <label for="modalidade" class="form-label">Modalidade</label>
                                 <select class="form-select" id="modalidade" name="modalidade">
-                                    <option value="all" {% if modalidade=='all' %}selected{% endif
-                                        %}>
+                                    <option value="all" {% if modalidade=='all' %}selected{% endif %}>
                                         Todas</option>
                                     <option value="US" {% if modalidade=='US' %}selected{% endif %}>
                                         US</option>
@@ -103,17 +126,346 @@
                             <thead>
                                 <tr>
                                     <th>#</th>
-                                    <th>ID</th>
-                                    <th>Paciente</th>
-                                    <th>Nascimento</th>
-                                    <th>Idade</th>
-                                    <th>Sexo</th>
-                                    <th>Modalidade</th>
-                                    <th>Procedimento</th>
-                                    <th>Protocolo</th>
-                                    <th>Data</th>
-                                    <th>Status</th>
-                                    <th>Qtd</th>
+                                    <th>
+                                        <div class="dropdown">
+                                            <div class="d-flex align-items-center justify-content-between" role="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                data-bs-auto-close="outside" data-bs-boundary="viewport">
+                                                <span>ID</span>
+                                                <i
+                                                    class="fas fa-filter {{ 'text-primary' if id_paciente else 'text-secondary' }}"></i>
+                                            </div>
+                                            <div class="dropdown-menu p-3" style="min-width: 250px;">
+                                                <label class="form-label mb-1">Filtrar ID</label>
+                                                <input type="text" class="form-control mb-2" id="filter_id_paciente"
+                                                    value="{{ id_paciente }}" onkeydown="checkEnter(event)">
+                                                <div class="d-flex justify-content-between">
+                                                    <button class="btn btn-sm btn-outline-secondary"
+                                                        onclick="document.getElementById('filter_id_paciente').value=''; applyFilters()">Limpar</button>
+                                                    <button class="btn btn-sm btn-primary"
+                                                        onclick="applyFilters()">Aplicar</button>
+                                                </div>
+                                                <div class="dropdown-divider"></div>
+                                                <h6 class="dropdown-header">Ordenação</h6>
+                                                <button class="dropdown-item" onclick="sortColumn('id', 'asc')"><i
+                                                        class="fas fa-sort-amount-down-alt me-2"></i>Ascendente</button>
+                                                <button class="dropdown-item" onclick="sortColumn('id', 'desc')"><i
+                                                        class="fas fa-sort-amount-down me-2"></i>Descendente</button>
+                                            </div>
+                                        </div>
+                                    </th>
+                                    <th>
+                                        <div class="dropdown">
+                                            <div class="d-flex align-items-center justify-content-between" role="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                data-bs-auto-close="outside" data-bs-boundary="viewport">
+                                                <span>Paciente</span>
+                                                <i
+                                                    class="fas fa-filter {{ 'text-primary' if nome else 'text-secondary' }}"></i>
+                                            </div>
+                                            <div class="dropdown-menu p-3" style="min-width: 300px;">
+                                                <label class="form-label mb-1">Filtrar Nome</label>
+                                                <input type="text" class="form-control mb-2" id="filter_nome"
+                                                    value="{{ nome }}" onkeydown="checkEnter(event)">
+                                                <div class="d-flex justify-content-between">
+                                                    <button class="btn btn-sm btn-outline-secondary"
+                                                        onclick="document.getElementById('filter_nome').value=''; applyFilters()">Limpar</button>
+                                                    <button class="btn btn-sm btn-primary"
+                                                        onclick="applyFilters()">Aplicar</button>
+                                                </div>
+                                                <div class="dropdown-divider"></div>
+                                                <h6 class="dropdown-header">Ordenação</h6>
+                                                <button class="dropdown-item" onclick="sortColumn('nome', 'asc')"><i
+                                                        class="fas fa-sort-amount-down-alt me-2"></i>Ascendente</button>
+                                                <button class="dropdown-item" onclick="sortColumn('nome', 'desc')"><i
+                                                        class="fas fa-sort-amount-down me-2"></i>Descendente</button>
+                                            </div>
+                                        </div>
+                                    </th>
+                                    <th>
+                                        <div class="dropdown">
+                                            <div class="d-flex align-items-center justify-content-between" role="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                data-bs-auto-close="outside" data-bs-boundary="viewport">
+                                                <span>Nascimento</span>
+                                                <i
+                                                    class="fas fa-sort {{ 'text-primary' if sort_by == 'nascimento' else 'text-secondary' }}"></i>
+                                            </div>
+                                            <div class="dropdown-menu p-3">
+                                                <h6 class="dropdown-header">Ordenação</h6>
+                                                <button class="dropdown-item"
+                                                    onclick="sortColumn('nascimento', 'asc')"><i
+                                                        class="fas fa-sort-amount-down-alt me-2"></i>Ascendente</button>
+                                                <button class="dropdown-item"
+                                                    onclick="sortColumn('nascimento', 'desc')"><i
+                                                        class="fas fa-sort-amount-down me-2"></i>Descendente</button>
+                                            </div>
+                                        </div>
+                                    </th>
+                                    <th>
+                                        <div class="dropdown">
+                                            <div class="d-flex align-items-center justify-content-between" role="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                data-bs-auto-close="outside" data-bs-boundary="viewport">
+                                                <span>Idade</span>
+                                                <i
+                                                    class="fas fa-sort {{ 'text-primary' if sort_by == 'idade' else 'text-secondary' }}"></i>
+                                            </div>
+                                            <div class="dropdown-menu p-3">
+                                                <h6 class="dropdown-header">Ordenação</h6>
+                                                <button class="dropdown-item" onclick="sortColumn('idade', 'asc')"><i
+                                                        class="fas fa-sort-amount-down-alt me-2"></i>Ascendente</button>
+                                                <button class="dropdown-item" onclick="sortColumn('idade', 'desc')"><i
+                                                        class="fas fa-sort-amount-down me-2"></i>Descendente</button>
+                                            </div>
+                                        </div>
+                                    </th>
+                                    <th>
+                                        <div class="dropdown">
+                                            <div class="d-flex align-items-center justify-content-between" role="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                data-bs-auto-close="outside" data-bs-boundary="viewport">
+                                                <span>Sexo</span>
+                                                <i
+                                                    class="fas fa-filter {{ 'text-primary' if sexo else 'text-secondary' }}"></i>
+                                            </div>
+                                            <div class="dropdown-menu p-3">
+                                                <label class="form-label mb-1">Filtrar Sexo</label>
+                                                <select class="form-select mb-2" id="filter_sexo">
+                                                    <option value="">Todos</option>
+                                                    <option value="M" {% if sexo=='M' %}selected{% endif %}>M</option>
+                                                    <option value="F" {% if sexo=='F' %}selected{% endif %}>F</option>
+                                                </select>
+                                                <div class="d-flex justify-content-between">
+                                                    <button class="btn btn-sm btn-outline-secondary"
+                                                        onclick="document.getElementById('filter_sexo').value=''; applyFilters()">Limpar</button>
+                                                    <button class="btn btn-sm btn-primary"
+                                                        onclick="applyFilters()">Aplicar</button>
+                                                </div>
+                                                <div class="dropdown-divider"></div>
+                                                <h6 class="dropdown-header">Ordenação</h6>
+                                                <button class="dropdown-item" onclick="sortColumn('sexo', 'asc')"><i
+                                                        class="fas fa-sort-amount-down-alt me-2"></i>Ascendente</button>
+                                                <button class="dropdown-item" onclick="sortColumn('sexo', 'desc')"><i
+                                                        class="fas fa-sort-amount-down me-2"></i>Descendente</button>
+                                            </div>
+                                        </div>
+                                    </th>
+                                    <th>
+                                        <div class="dropdown">
+                                            <div class="d-flex align-items-center justify-content-between" role="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                data-bs-auto-close="outside" data-bs-boundary="viewport">
+                                                <span>Modalidade</span>
+                                                <i
+                                                    class="fas fa-filter {{ 'text-primary' if modalidade and modalidade != 'all' else 'text-secondary' }}"></i>
+                                            </div>
+                                            <div class="dropdown-menu p-3">
+                                                <label class="form-label mb-1">Filtrar Modalidade</label>
+                                                <select class="form-select mb-2" id="filter_modalidade">
+                                                    <option value="all" {% if modalidade=='all' %}selected{% endif %}>
+                                                        Todas</option>
+                                                    <option value="US" {% if modalidade=='US' %}selected{% endif %}>US
+                                                    </option>
+                                                    <option value="CT" {% if modalidade=='CT' %}selected{% endif %}>CT
+                                                    </option>
+                                                    <option value="DX" {% if modalidade=='DX' %}selected{% endif %}>DX
+                                                    </option>
+                                                </select>
+                                                <div class="d-flex justify-content-between">
+                                                    <button class="btn btn-sm btn-outline-secondary"
+                                                        onclick="document.getElementById('filter_modalidade').value='all'; applyFilters()">Limpar</button>
+                                                    <button class="btn btn-sm btn-primary"
+                                                        onclick="applyFilters()">Aplicar</button>
+                                                </div>
+                                                <div class="dropdown-divider"></div>
+                                                <h6 class="dropdown-header">Ordenação</h6>
+                                                <button class="dropdown-item"
+                                                    onclick="sortColumn('modalidade', 'asc')"><i
+                                                        class="fas fa-sort-amount-down-alt me-2"></i>Ascendente</button>
+                                                <button class="dropdown-item"
+                                                    onclick="sortColumn('modalidade', 'desc')"><i
+                                                        class="fas fa-sort-amount-down me-2"></i>Descendente</button>
+                                            </div>
+                                        </div>
+                                    </th>
+                                    <th>
+                                        <div class="dropdown">
+                                            <div class="d-flex align-items-center justify-content-between" role="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                data-bs-auto-close="outside" data-bs-boundary="viewport">
+                                                <span>Procedimento</span>
+                                                <i
+                                                    class="fas fa-filter {{ 'text-primary' if procedimento else 'text-secondary' }}"></i>
+                                            </div>
+                                            <div class="dropdown-menu p-3" style="min-width: 300px;">
+                                                <label class="form-label mb-1">Filtrar Procedimento</label>
+                                                <input type="text" class="form-control mb-2" id="filter_procedimento"
+                                                    value="{{ procedimento }}" onkeydown="checkEnter(event)">
+                                                <div class="d-flex justify-content-between">
+                                                    <button class="btn btn-sm btn-outline-secondary"
+                                                        onclick="document.getElementById('filter_procedimento').value=''; applyFilters()">Limpar</button>
+                                                    <button class="btn btn-sm btn-primary"
+                                                        onclick="applyFilters()">Aplicar</button>
+                                                </div>
+                                                <div class="dropdown-divider"></div>
+                                                <h6 class="dropdown-header">Ordenação</h6>
+                                                <button class="dropdown-item"
+                                                    onclick="sortColumn('procedimento', 'asc')"><i
+                                                        class="fas fa-sort-amount-down-alt me-2"></i>Ascendente</button>
+                                                <button class="dropdown-item"
+                                                    onclick="sortColumn('procedimento', 'desc')"><i
+                                                        class="fas fa-sort-amount-down me-2"></i>Descendente</button>
+                                            </div>
+                                        </div>
+                                    </th>
+                                    <th>
+                                        <div class="dropdown">
+                                            <div class="d-flex align-items-center justify-content-between" role="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                data-bs-auto-close="outside" data-bs-boundary="viewport">
+                                                <span>Protocolo</span>
+                                                <i
+                                                    class="fas fa-filter {{ 'text-primary' if protocolo else 'text-secondary' }}"></i>
+                                            </div>
+                                            <div class="dropdown-menu p-3" style="min-width: 250px;">
+                                                <label class="form-label mb-1">Filtrar Protocolo</label>
+                                                <input type="text" class="form-control mb-2" id="filter_protocolo"
+                                                    value="{{ protocolo }}" onkeydown="checkEnter(event)">
+                                                <div class="d-flex justify-content-between">
+                                                    <button class="btn btn-sm btn-outline-secondary"
+                                                        onclick="document.getElementById('filter_protocolo').value=''; applyFilters()">Limpar</button>
+                                                    <button class="btn btn-sm btn-primary"
+                                                        onclick="applyFilters()">Aplicar</button>
+                                                </div>
+                                                <div class="dropdown-divider"></div>
+                                                <h6 class="dropdown-header">Ordenação</h6>
+                                                <button class="dropdown-item"
+                                                    onclick="sortColumn('protocolo', 'asc')"><i
+                                                        class="fas fa-sort-amount-down-alt me-2"></i>Ascendente</button>
+                                                <button class="dropdown-item"
+                                                    onclick="sortColumn('protocolo', 'desc')"><i
+                                                        class="fas fa-sort-amount-down me-2"></i>Descendente</button>
+                                            </div>
+                                        </div>
+                                    </th>
+                                    <th>
+                                        <div class="dropdown">
+                                            <div class="d-flex align-items-center justify-content-between" role="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                data-bs-auto-close="outside" data-bs-boundary="viewport">
+                                                <span>Data</span>
+                                                <i
+                                                    class="fas fa-filter {{ 'text-primary' if data_atendimento and data_atendimento != 'all' else 'text-secondary' }}"></i>
+                                            </div>
+                                            <div class="dropdown-menu p-3" style="min-width: 200px;">
+                                                <label class="form-label mb-1">Filtrar Data</label>
+                                                <select class="form-select mb-2" id="filter_data_atendimento">
+                                                    <option value="all" {% if data_atendimento=='all' %}selected{% endif
+                                                        %}>Todas</option>
+                                                    <option value="today" {% if data_atendimento=='today' %}selected{%
+                                                        endif %}>Hoje</option>
+                                                    <option value="last3days" {% if data_atendimento=='last3days'
+                                                        %}selected{% endif %}>3 Dias</option>
+                                                    <option value="last30days" {% if data_atendimento=='last30days'
+                                                        %}selected{% endif %}>30 Dias</option>
+                                                </select>
+                                                <div class="d-flex justify-content-between">
+                                                    <button class="btn btn-sm btn-outline-secondary"
+                                                        onclick="document.getElementById('filter_data_atendimento').value='all'; applyFilters()">Limpar</button>
+                                                    <button class="btn btn-sm btn-primary"
+                                                        onclick="applyFilters()">Aplicar</button>
+                                                </div>
+                                                <div class="dropdown-divider"></div>
+                                                <h6 class="dropdown-header">Ordenação</h6>
+                                                <button class="dropdown-item" onclick="sortColumn('data', 'asc')"><i
+                                                        class="fas fa-sort-amount-down-alt me-2"></i>Ascendente</button>
+                                                <button class="dropdown-item" onclick="sortColumn('data', 'desc')"><i
+                                                        class="fas fa-sort-amount-down me-2"></i>Descendente</button>
+                                            </div>
+                                        </div>
+                                    </th>
+                                    <th>
+                                        <div class="dropdown">
+                                            <div class="d-flex align-items-center justify-content-between" role="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                data-bs-auto-close="outside" data-bs-boundary="viewport">
+                                                <span>Status</span>
+                                                <i
+                                                    class="fas fa-filter {{ 'text-primary' if status else 'text-secondary' }}"></i>
+                                            </div>
+                                            <div class="dropdown-menu p-3">
+                                                <label class="form-label mb-1">Filtrar Status</label>
+                                                <select class="form-select mb-2" id="filter_status">
+                                                    <option value="">Todos</option>
+                                                    <option value="Impresso" {% if status=='Impresso' %}selected{% endif
+                                                        %}>Impresso</option>
+                                                    <option value="Pronto" {% if status=='Pronto' %}selected{% endif %}>
+                                                        Pronto</option>
+                                                    <option value="Visual" {% if status=='Visual' %}selected{% endif %}>
+                                                        Visual</option>
+                                                    <option value="Rascu" {% if status=='Rascu' %}selected{% endif %}>
+                                                        Rascu</option>
+                                                </select>
+                                                <div class="d-flex justify-content-between">
+                                                    <button class="btn btn-sm btn-outline-secondary"
+                                                        onclick="document.getElementById('filter_status').value=''; applyFilters()">Limpar</button>
+                                                    <button class="btn btn-sm btn-primary"
+                                                        onclick="applyFilters()">Aplicar</button>
+                                                </div>
+                                                <div class="dropdown-divider"></div>
+                                                <h6 class="dropdown-header">Ordenação</h6>
+                                                <button class="dropdown-item" onclick="sortColumn('status', 'asc')"><i
+                                                        class="fas fa-sort-amount-down-alt me-2"></i>Ascendente</button>
+                                                <button class="dropdown-item" onclick="sortColumn('status', 'desc')"><i
+                                                        class="fas fa-sort-amount-down me-2"></i>Descendente</button>
+                                            </div>
+                                        </div>
+                                    </th>
+                                    <th>
+                                        <div class="dropdown">
+                                            <div class="d-flex align-items-center justify-content-between" role="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                data-bs-auto-close="outside" data-bs-boundary="viewport">
+                                                <span>Qtd</span>
+                                                <i
+                                                    class="fas fa-filter {{ 'text-primary' if qtd_valor else 'text-secondary' }}"></i>
+                                            </div>
+                                            <div class="dropdown-menu p-3" style="min-width: 200px;">
+                                                <label class="form-label mb-1">Filtrar Qtd</label>
+                                                <div class="input-group mb-2">
+                                                    <select class="form-select" id="filter_qtd_operador"
+                                                        style="max-width: 70px;">
+                                                        <option value="=" {% if qtd_operador=='=' %}selected{% endif %}>
+                                                            =</option>
+                                                        <option value=">" {% if qtd_operador=='>' %}selected{% endif %}>
+                                                            &gt;</option>
+                                                        <option value="<" {% if qtd_operador=='<' %}selected{% endif %}>
+                                                            &lt;</option>
+                                                        <option value=">=" {% if qtd_operador=='>=' %}selected{% endif
+                                                            %}>&ge;</option>
+                                                        <option value="<=" {% if qtd_operador=='<=' %}selected{% endif
+                                                            %}>&le;</option>
+                                                    </select>
+                                                    <input type="number" class="form-control" id="filter_qtd_valor"
+                                                        value="{{ qtd_valor }}" onkeydown="checkEnter(event)"
+                                                        placeholder="Valor">
+                                                </div>
+                                                <div class="d-flex justify-content-between">
+                                                    <button class="btn btn-sm btn-outline-secondary"
+                                                        onclick="document.getElementById('filter_qtd_valor').value=''; applyFilters()">Limpar</button>
+                                                    <button class="btn btn-sm btn-primary"
+                                                        onclick="applyFilters()">Aplicar</button>
+                                                </div>
+                                                <div class="dropdown-divider"></div>
+                                                <h6 class="dropdown-header">Ordenação</h6>
+                                                <button class="dropdown-item" onclick="sortColumn('qtd', 'asc')"><i
+                                                        class="fas fa-sort-amount-down-alt me-2"></i>Ascendente</button>
+                                                <button class="dropdown-item" onclick="sortColumn('qtd', 'desc')"><i
+                                                        class="fas fa-sort-amount-down me-2"></i>Descendente</button>
+                                            </div>
+                                        </div>
+                                    </th>
                                     <th>Ações</th>
                                 </tr>
                             </thead>
@@ -141,6 +493,8 @@
                                         <span class="status-orange">{{ patient[9] }}</span>
                                         {% elif patient[9] == 'Visual' %}
                                         <span class="status-blue">{{ patient[9] }}</span>
+                                        {% elif patient[9] == 'Rascu' %}
+                                        <span class="status-gray">{{ patient[9] }}</span>
                                         {% else %}
                                         <span class="status-red">{{ patient[9] }}</span>
                                         {% endif %}
@@ -157,23 +511,28 @@
                                                 aria-labelledby="dropdownMenuButton-{{ patient[0] }}">
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirViewer('{{ patient[7] }}')"><i
-                                                            class="fa-solid fa-tv me-2"></i>Abrir no Weasis (local)</a></li>
+                                                            class="fa-solid fa-tv me-2"></i>Abrir no Weasis (local)</a>
+                                                </li>
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirModal('{{ patient[7] }}')"><i
                                                             class="fas fa-print me-2"></i>Imprimir imagens</a></li>
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirViewerWeb('{{ patient[7] }}')"><i
-                                                            class="fas fa-eye me-2"></i>Abrir no Weasis (servidor)</a></li>
-                                                <!-- <li><a class="dropdown-item" href="#"
+                                                            class="fas fa-eye me-2"></i>Abrir no Weasis (servidor)</a>
+                                                </li>
+                                                <li><a class="dropdown-item" href="#"
                                                         onclick="abrirViewerOHIFWeb('{{ patient[7] }}')"><i
-                                                            class="fa-solid fa-globe me-2"></i>Abrir no navegador</a></li>
-                                                {% if user_role == 'admin' %} -->
+                                                            class="fa-solid fa-globe me-2"></i>Abrir no navegador</a>
+                                                </li>
+                                                {% if user_role == 'admin' %}
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirModalEditar('{{ patient[0] }}', '{{ patient[1] }}', '{{ patient[2] }}', '{{ patient[4] }}')"><i
                                                             class="fas fa-pen me-2"></i>Editar dados</a></li>
                                                 {% endif %}
                                                 {% if user_role == 'admin' %}
-                                                <!-- <li><a class="dropdown-item" href="#" onclick="abrirLaudo('{{ patient[7] }}')"><i class="fa-regular fa-file-word me-2"></i>Laudo</a></li> -->
+                                                <li><a class="dropdown-item" href="#"
+                                                        onclick="abrirLaudo('{{ patient[7] }}')"><i
+                                                            class="fa-regular fa-file-word me-2"></i>Laudo</a></li>
                                                 {% endif %}
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirModalDownload('{{ patient[7] }}')"><i
@@ -219,33 +578,32 @@
                     {% if per_page != 'Todas' %}
                     <div class="pagination">
                         {% if page > 1 %}
-                        <a href="{{ url_for('homepage', page=page-1, per_page=per_page, id_paciente=id_paciente, nome=nome, sexo=sexo, data_atendimento=data_atendimento, modalidade=modalidade) }}">Anterior</a>
+                        <a
+                            href="{{ url_for('homepage', page=page-1, per_page=per_page, id_paciente=id_paciente, nome=nome, sexo=sexo, data_atendimento=data_atendimento, modalidade=modalidade, procedimento=procedimento, protocolo=protocolo, status=status, qtd_operador=qtd_operador, qtd_valor=qtd_valor, sort_by=sort_by, sort_order=sort_order) }}">Anterior</a>
                         {% else %}
                         <a href="#" class="disabled">Anterior</a>
                         {% endif %}
                         {% set max_pages = 10 %}
                         {% set start = page - 5 %}
-                        {% if start < 1 %}{% set start = 1 %}{% endif %}
-                        {% set end = start + max_pages - 1 %}
-                        {% if end > total_pages %}{% set end = total_pages %}{% endif %}
-                        {% if (end - start + 1) < max_pages %}
-                            {% set start = end - max_pages + 1 %}
-                            {% if start < 1 %}{% set start = 1 %}{% endif %}
-                        {% endif %}
-                        {% for p in range(start, end + 1) %}
-                        <a href="{{ url_for('homepage', page=p, per_page=per_page, id_paciente=id_paciente, nome=nome, sexo=sexo, data_atendimento=data_atendimento, modalidade=modalidade) }}"
-                            {% if p==page %}class="active" {% endif %}>{{ p }}</a>
-                        {% endfor %}
-                        {% if page < total_pages %}
-                        <a href="{{ url_for('homepage', page=page+1, per_page=per_page, id_paciente=id_paciente, nome=nome, sexo=sexo, data_atendimento=data_atendimento, modalidade=modalidade) }}">Próximo</a>
-                        {% else %}
-                        <a href="#" class="disabled">Próximo</a>
-                        {% endif %}
+                        {% if start < 1 %}{% set start=1 %}{% endif %} {% set end=start + max_pages - 1 %} {% if end>
+                            total_pages %}{% set end = total_pages %}{% endif %}
+                            {% if (end - start + 1) < max_pages %} {% set start=end - max_pages + 1 %} {% if start < 1
+                                %}{% set start=1 %}{% endif %} {% endif %} {% for p in range(start, end + 1) %} <a
+                                href="{{ url_for('homepage', page=p, per_page=per_page, id_paciente=id_paciente, nome=nome, sexo=sexo, data_atendimento=data_atendimento, modalidade=modalidade, procedimento=procedimento, protocolo=protocolo, status=status, qtd_operador=qtd_operador, qtd_valor=qtd_valor, sort_by=sort_by, sort_order=sort_order) }}"
+                                {% if p==page %}class="active" {% endif %}>{{ p }}</a>
+                                {% endfor %}
+                                {% if page < total_pages %} <a
+                                    href="{{ url_for('homepage', page=page+1, per_page=per_page, id_paciente=id_paciente, nome=nome, sexo=sexo, data_atendimento=data_atendimento, modalidade=modalidade, procedimento=procedimento, protocolo=protocolo, status=status, qtd_operador=qtd_operador, qtd_valor=qtd_valor, sort_by=sort_by, sort_order=sort_order) }}">
+                                    Próximo</a>
+                                    {% else %}
+                                    <a href="#" class="disabled">Próximo</a>
+                                    {% endif %}
                     </div>
                     {% endif %}
                     <!-- Rodapé: contador de linhas visíveis -->
                     <div class="mt-2 text-muted" style="text-align:center; font-size:0.80rem;">
-                        registros exibidos nesta visualização: <strong>{{ visible_count }}</strong>
+                        registros exibidos nesta visualização: <strong>{{ visible_count }}</strong> de <strong>{{
+                            total_records }}</strong>
                     </div>
                 </div>
             </div>
@@ -485,7 +843,7 @@
                 });
         }
 
-                // Função para abrir o visualizador web OHIF
+        // Função para abrir o visualizador web OHIF
         window.abrirViewerOHIFWeb = function (studyPk) {
             fetch(`/teste_study_iuid/${studyPk}`)
                 .then(response => response.json())
@@ -733,6 +1091,140 @@
 
         showAlert('Download iniciado!', 'success');
     }
+
+    function applyFilters() {
+        const id_paciente = document.getElementById('filter_id_paciente').value;
+        const nome = document.getElementById('filter_nome').value;
+        const sexo = document.getElementById('filter_sexo').value;
+        const modalidade = document.getElementById('filter_modalidade').value;
+        const data_atendimento = document.getElementById('filter_data_atendimento').value;
+        const procedimento = document.getElementById('filter_procedimento').value;
+        const protocolo = document.getElementById('filter_protocolo').value;
+        const status = document.getElementById('filter_status').value;
+        const qtd_operador = document.getElementById('filter_qtd_operador').value;
+        const qtd_valor = document.getElementById('filter_qtd_valor').value;
+
+        const sort_by = document.getElementById('sort_by').value;
+        const sort_order = document.getElementById('sort_order').value;
+
+        let per_page = '10';
+        const perPageEl = document.getElementById('per_page');
+        if (perPageEl) {
+            per_page = perPageEl.value;
+        }
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/estudos';
+        form.innerHTML = `
+            <input type="hidden" name="id_paciente" value="${id_paciente}">
+            <input type="hidden" name="nome" value="${nome}">
+            <input type="hidden" name="sexo" value="${sexo}">
+            <input type="hidden" name="modalidade" value="${modalidade}">
+            <input type="hidden" name="data_atendimento" value="${data_atendimento}">
+            <input type="hidden" name="procedimento" value="${procedimento}">
+            <input type="hidden" name="protocolo" value="${protocolo}">
+            <input type="hidden" name="status" value="${status}">
+            <input type="hidden" name="qtd_operador" value="${qtd_operador}">
+            <input type="hidden" name="qtd_valor" value="${qtd_valor}">
+            <input type="hidden" name="per_page" value="${per_page}">
+            <input type="hidden" name="sort_by" value="${sort_by}">
+            <input type="hidden" name="sort_order" value="${sort_order}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    function checkEnter(event) {
+        if (event.key === 'Enter') {
+            applyFilters();
+        }
+    }
+
+    function sortColumn(column, order) {
+        document.getElementById('sort_by').value = column;
+        document.getElementById('sort_order').value = order;
+        applyFilters();
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize Dropdowns
+        var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
+        var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
+            return new bootstrap.Dropdown(dropdownToggleEl);
+        });
+
+        // Duplo clique na linha do paciente para carregar local
+        const tableBody = document.querySelector('.table-container table tbody');
+        if (tableBody) {
+            tableBody.querySelectorAll('tr').forEach(row => {
+                // Ignora linhas de detalhes expansíveis
+                if (row.classList.contains('expanded-row')) return;
+
+                row.addEventListener('dblclick', function (event) {
+                    const cell = event.target.closest('td');
+                    // Ignora o duplo clique no expansor (primeira coluna) e na coluna de ações (última)
+                    if (cell && (cell.cellIndex === 0 || cell.cellIndex === (row.cells.length - 1))) {
+                        return;
+                    }
+                    const studyPk = row.dataset.studyPk;
+                    if (studyPk) {
+                        abrirViewer(studyPk);
+                    }
+                });
+            });
+        }
+
+        // Column Resizing Logic
+        const table = document.querySelector('.table');
+        if (table) {
+            const headers = table.querySelectorAll('th');
+
+            headers.forEach(th => {
+                // Check if resizer already exists to avoid duplication
+                if (th.querySelector('.resizer')) return;
+
+                th.classList.add('resizable');
+                const resizer = document.createElement('div');
+                resizer.classList.add('resizer');
+                th.appendChild(resizer);
+
+                createResizableColumn(th, resizer);
+            });
+        }
+    });
+
+    function createResizableColumn(th, resizer) {
+        let x = 0;
+        let w = 0;
+
+        const mouseDownHandler = function (e) {
+            x = e.clientX;
+            const styles = window.getComputedStyle(th);
+            w = parseInt(styles.width, 10);
+
+            document.addEventListener('mousemove', mouseMoveHandler);
+            document.addEventListener('mouseup', mouseUpHandler);
+            resizer.classList.add('resizing');
+
+            // Prevent text selection during drag
+            document.body.style.userSelect = 'none';
+        };
+
+        const mouseMoveHandler = function (e) {
+            const dx = e.clientX - x;
+            th.style.width = `${w + dx}px`;
+        };
+
+        const mouseUpHandler = function () {
+            document.removeEventListener('mousemove', mouseMoveHandler);
+            document.removeEventListener('mouseup', mouseUpHandler);
+            resizer.classList.remove('resizing');
+            document.body.style.userSelect = '';
+        };
+
+        resizer.addEventListener('mousedown', mouseDownHandler);
+    }
 </script>
 
 <!-- Modal de Download -->
@@ -765,29 +1257,3 @@
 </div>
 
 {% endblock %}
-
-var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
-var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
-return new bootstrap.Dropdown(dropdownToggleEl);
-});
-
-// Duplo clique na linha do paciente para carregar local
-const tableBody = document.querySelector('.table-container table tbody');
-if (tableBody) {
-tableBody.querySelectorAll('tr').forEach(row => {
-// Ignora linhas de detalhes expansíveis
-if (row.classList.contains('expanded-row')) return;
-
-row.addEventListener('dblclick', function (event) {
-const cell = event.target.closest('td');
-// Ignora o duplo clique no expansor (primeira coluna) e na coluna de ações (última)
-if (cell && (cell.cellIndex === 0 || cell.cellIndex === (row.cells.length - 1))) {
-return;
-}
-const studyPk = row.dataset.studyPk;
-if (studyPk) {
-abrirViewer(studyPk);
-}
-});
-});
-}

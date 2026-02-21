@@ -1,22 +1,43 @@
+from models.RolePermission import RolePermission
+
 def get_user_permissions(user):
     """
-    Retorna um dicionário de permissões para o usuário.
-    No futuro, isso será carregado do banco de dados.
+    Retorna um dicionário de permissões para o usuário, carregado do banco de dados.
+    Inclui fallback para permissões hardcoded caso o banco esteja vazio.
     """
-    # Admin/Root têm permissões elevadas; Importar DICOM somente para Root
     role = (getattr(user, 'role', '') or '').lower()
     user_id = (getattr(user, 'user_id', '') or '').lower()
     name = (getattr(user, 'name', '') or '').lower()
+    
+    # Root sempre tem permissão total
     is_root = role == 'root' or user_id == 'root' or name == 'root'
-    if role in ('admin', 'root') or is_root:
-        perms = {
+    
+    # Lista de todas as permissões possíveis
+    all_defs = list_permission_definitions()
+    all_keys = [d['key'] for d in all_defs]
+
+    if is_root:
+        return {key: True for key in all_keys}
+
+    # Tenta carregar do banco de dados
+    try:
+        db_perms = RolePermission.query.filter_by(role_name=role).all()
+        if db_perms:
+            activated_keys = {p.permission_key for p in db_perms}
+            return {key: (key in activated_keys) for key in all_keys}
+    except Exception:
+        # Se houver erro no banco (ex: tabela não criada), segue para o fallback
+        pass
+
+    # Fallback Hardcoded (Compatibilidade com grupos fixos atuais)
+    if role == 'admin':
+        return {
             'visualizar_estudos': True,
             'editar_estudos': True,
             'acessar_menu_configuracoes': True,
             'excluir_estudos': True,
             'imprimir_estudos': True,
             'acessar_importar_dicom': False,
-            # Novos escopos de acesso
             'visualizar_relatorios': True,
             'acessar_gerencial': True,
             'criar_usuarios': True,
@@ -25,17 +46,15 @@ def get_user_permissions(user):
             'acessar_armazenamento': True,
             'acessar_permissoes': True,
         }
-        perms['acessar_importar_dicom'] = True if is_root else False
-        return perms
-
-    # Padrão para outros usuários (pode ser ajustado posteriormente)
+    
+    # Padrão para outros (Médico, Técnico, etc) enquanto não configurado via UI
     return {
         'visualizar_estudos': True,
         'editar_estudos': False,
         'acessar_menu_configuracoes': False,
         'excluir_estudos': False,
         'imprimir_estudos': True,
-        # Novos escopos de acesso - padrão restritivo
+        'acessar_importar_dicom': False,
         'visualizar_relatorios': False,
         'acessar_gerencial': False,
         'criar_usuarios': False,

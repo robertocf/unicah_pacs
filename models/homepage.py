@@ -11,7 +11,14 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
         sexo = request.form.get("sexo", "")
         data_atendimento = request.form.get("data_atendimento", "all")
         modalidade = request.form.get("modalidade", "all")
+        procedimento = request.form.get("procedimento", "")
+        protocolo = request.form.get("protocolo", "")
+        status = request.form.get("status", "")
+        qtd_operador = request.form.get("qtd_operador", "")
+        qtd_valor = request.form.get("qtd_valor", "")
         per_page_param = request.form.get("per_page", 10)
+        sort_by = request.form.get("sort_by", "data")
+        sort_order = request.form.get("sort_order", "desc")
     else:
         id_paciente = request.args.get("id_paciente", "")
         nome = request.args.get("nome", "")
@@ -19,8 +26,37 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
         sexo = request.args.get("sexo", "")
         data_atendimento = request.args.get("data_atendimento", "all")
         modalidade = request.args.get("modalidade", "all")
+        procedimento = request.args.get("procedimento", "")
+        protocolo = request.args.get("protocolo", "")
+        status = request.args.get("status", "")
+        qtd_operador = request.args.get("qtd_operador", "")
+        qtd_valor = request.args.get("qtd_valor", "")
         per_page_param = request.args.get("per_page", 10)
+        sort_by = request.args.get("sort_by", "data")
+        sort_order = request.args.get("sort_order", "desc")
 
+    # Validar sort_order
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'desc'
+
+    # Mapeamento de colunas para ordenação
+    sort_mapping = {
+        'id': 'p.pat_id',
+        'nome': 'pat_name',
+        'nascimento': 'p.pat_birthdate',
+        'idade': 'p.pat_birthdate', 
+        'sexo': 'p.pat_sex',
+        'modalidade': 'sr.modality',
+        'procedimento': 'study_desc',
+        'protocolo': 's.study_id',
+        'data': 's.study_datetime',
+        'status': 'custom',
+        'qtd': 's.num_instances'
+    }
+    
+    # Se a coluna não estiver no mapa, usa data como padrão
+    order_column = sort_mapping.get(sort_by, 's.study_datetime')
+    
     # Converter per_page_param para int se for numérico para coincidir com as opções do template
     if per_page_param != "Todas":
         try:
@@ -68,7 +104,7 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
                     WHEN s.study_desc IS NULL THEN '' else s.study_desc end as study_desc,
                    s.pk,
                    to_char(s.study_datetime, 'DD/MM/YYYY HH24:MI:SS') as study_datetime,
-                   CASE s.study_custom1 WHEN 'I' THEN 'Impresso' WHEN 'V' THEN 'Visual' ELSE 'Pronto' END AS custom,
+                   CASE s.study_custom1 WHEN 'I' THEN 'Impresso' WHEN 'V' THEN 'Visual' WHEN 'R' THEN 'Rascu' ELSE 'Pronto' END AS custom,
                    s.num_instances,
                    s.pk,
                    CASE WHEN sr.institution IS NULL THEN '' else sr.institution END AS institution, 
@@ -104,7 +140,7 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
                     WHEN s.study_desc IS NULL THEN '' else s.study_desc end as study_desc,
                    s.pk,
                    to_char(s.study_datetime, 'DD/MM/YYYY HH24:MI:SS') as study_datetime,
-                   CASE s.study_custom1 WHEN 'I' THEN 'Impresso' WHEN 'V' THEN 'Visual' ELSE 'Pronto' END AS custom,
+                   CASE s.study_custom1 WHEN 'I' THEN 'Impresso' WHEN 'V' THEN 'Visual' WHEN 'R' THEN 'Rascu' ELSE 'Pronto' END AS custom,
                    s.num_instances,
                    s.pk,
                    CASE WHEN sr.institution IS NULL THEN '' else sr.institution END AS institution, 
@@ -174,6 +210,28 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
         conditions.append("sr.modality = %s")
         params.append(modalidade)
 
+    if procedimento:
+        conditions.append("s.study_desc ILIKE %s")
+        params.append(f"%{procedimento}%")
+
+    if protocolo:
+        conditions.append("s.study_id ILIKE %s")
+        params.append(f"%{protocolo}%")
+
+    if status:
+        if status == 'Impresso':
+            conditions.append("s.study_custom1 = 'I'")
+        elif status == 'Visual':
+            conditions.append("s.study_custom1 = 'V'")
+        elif status == 'Rascu':
+            conditions.append("s.study_custom1 = 'R'")
+        elif status == 'Pronto':
+             conditions.append("(s.study_custom1 IS NULL OR s.study_custom1 NOT IN ('I', 'V', 'R'))")
+
+    if qtd_valor and qtd_valor.isdigit() and qtd_operador in ['>', '<', '=', '>=', '<=']:
+         conditions.append(f"s.num_instances {qtd_operador} %s")
+         params.append(qtd_valor)
+
     # Monta a query completa
     if conditions:
         base_query += " AND " + " AND ".join(conditions)
@@ -190,13 +248,13 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
     if per_page is None:
         # Mostrar todas as páginas
         total_pages = 1
-        full_query += """
-            ORDER BY s.study_datetime DESC
+        full_query += f"""
+            ORDER BY {order_column} {sort_order.upper()}
         """
     else:
         total_pages = (total_records + per_page - 1) // per_page
-        full_query += """
-            ORDER BY s.study_datetime DESC
+        full_query += f"""
+            ORDER BY {order_column} {sort_order.upper()}
             LIMIT %s OFFSET %s
         """
         params.extend([per_page, offset])
@@ -225,6 +283,7 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
         SERVER_IP=SERVER_IP,
         patients=patients,
         visible_count=len(patients),
+        total_records=total_records,
         page=page,
         per_page=per_page_param,  # Usar o valor original para o dropdown
         total_pages=total_pages,
@@ -235,6 +294,13 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
         sexo=sexo,
         data_atendimento=data_atendimento,
         modalidade=modalidade,
+        procedimento=procedimento,
+        protocolo=protocolo,
+        status=status,
+        qtd_operador=qtd_operador,
+        qtd_valor=qtd_valor,
+        sort_by=sort_by,
+        sort_order=sort_order,
         user_name=user_name,
         user_role=user_role,
         alert=alert

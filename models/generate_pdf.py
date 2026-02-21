@@ -167,8 +167,8 @@ def gerar_pdf_completo(study_uid):
         img_width = (width - 30) / cols
     total_pages = (len(jpg_files) + images_per_page - 1) // images_per_page
     current_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-    c.setFont("Helvetica", 6)
-    c.drawString(455, height - 10, f"Documento impresso em: {current_time}")
+    c.setFont("Courier", 6)
+    c.drawString(440, height - 10, f"Documento impresso em: {current_time}")
     for i, jpg in enumerate(jpg_files):
         if i % images_per_page == 0:
             if i != 0:

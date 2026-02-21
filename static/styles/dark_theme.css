@@ -1,0 +1,185 @@
+/* Dark Theme Variables */
+[data-theme="dark"] {
+    --bg-body: #121212;
+    --bg-content: #1e1e1e;
+    --text-primary: #e0e0e0;
+    --text-secondary: #adb5bd;
+    --border-color: #444;
+    --bg-input: #2d2d2d;
+    --bg-hover: #333;
+    --bg-card: #1e1e1e;
+    --bg-header: #2d2d2d;
+    --link-color: #6ea8fe;
+}
+
+/* Apply variables */
+[data-theme="dark"] body {
+    background-color: var(--bg-body);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .main-content,
+[data-theme="dark"] .sidebar-left,
+[data-theme="dark"] .sidebar-right,
+[data-theme="dark"] .content-wrapper,
+[data-theme="dark"] .container-fluid {
+    background-color: var(--bg-body) !important;
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .main-content {
+    background-color: var(--bg-content) !important;
+}
+
+[data-theme="dark"] .card {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .table {
+    color: var(--text-primary);
+    border-color: var(--border-color);
+    --bs-table-color: var(--text-primary);
+    --bs-table-bg: var(--bg-content);
+    --bs-table-border-color: var(--border-color);
+    --bs-table-striped-bg: #2c2c2c;
+    --bs-table-striped-color: var(--text-primary);
+    --bs-table-active-bg: #373737;
+    --bs-table-active-color: var(--text-primary);
+    --bs-table-hover-bg: #323232;
+    --bs-table-hover-color: var(--text-primary);
+}
+
+[data-theme="dark"] .table th {
+    background-color: var(--bg-header);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .table td {
+    border-color: var(--border-color);
+    background-color: var(--bg-content);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .table-hover tbody tr:hover td {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background-color: var(--bg-input);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+    border-color: #0d6efd;
+}
+
+[data-theme="dark"] .form-control::placeholder {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .dropdown-menu {
+    background-color: var(--bg-content);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .dropdown-item {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .dropdown-item:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .modal-content {
+    background-color: var(--bg-content);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer {
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Pagination in dark mode */
+[data-theme="dark"] .pagination a {
+    background-color: var(--bg-content);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .pagination a:hover:not(.disabled) {
+    background-color: var(--bg-hover);
+}
+
+[data-theme="dark"] .pagination a.active {
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+
+[data-theme="dark"] .pagination a.disabled {
+    background-color: var(--bg-content);
+    color: var(--text-secondary);
+}
+
+/* Custom text utility for dark mode */
+[data-theme="dark"] .text-muted {
+    color: var(--text-secondary) !important;
+}
+
+/* Fix for specific elements */
+[data-theme="dark"] .resizer:hover,
+[data-theme="dark"] .resizing {
+    border-right-color: #6ea8fe;
+}
+
+/* Specific Study Page Overrides */
+[data-theme="dark"] .expanded-row {
+    background-color: #252525 !important;
+}
+
+[data-theme="dark"] .expanded-row td {
+    background-color: #252525 !important;
+}
+
+[data-theme="dark"] .row-activated {
+    background-color: #3d3d29 !important; /* Darker yellow/olive */
+}
+
+/* Agenda Page Overrides */
+[data-theme="dark"] .agenda-card .card-header {
+    background-color: var(--bg-header);
+    color: var(--text-primary);
+    border-bottom-color: var(--border-color);
+}
+
+[data-theme="dark"] .agenda-empty {
+    background-color: var(--bg-content);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .slot-chip {
+    background-color: #1a2a40;
+    border-color: #2c4a70;
+    color: #6ea8fe;
+}
+
+[data-theme="dark"] .navbar.bg-custom {
+    background-color: var(--bg-header) !important;
+}
