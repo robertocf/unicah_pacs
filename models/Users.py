@@ -9,6 +9,11 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(255))
     role = db.Column(db.String(255))
     active = db.Column(db.Boolean, default=True)
+    is_medico = db.Column(db.Boolean, default=False)
+    crm = db.Column(db.String(50))
+    conselho = db.Column(db.String(50))
+    estado = db.Column(db.String(2))
+    assinatura_path = db.Column(db.String(255))
 
     def get_id(self):
         return str(self.pk)

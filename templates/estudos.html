@@ -11,7 +11,7 @@
     }
 
     .expanded-row td {
-        padding: 15px;
+        padding: 10px;
     }
 
     .table-hover tbody tr:hover {
@@ -45,6 +45,34 @@
     .resizing {
         border-right: 2px solid #007bff;
         /* Visual feedback */
+    }
+
+    /* Gender Circles */
+    .gender-circle-m {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 1px solid #007bff;
+        color: #007bff;
+        font-weight: bold;
+        font-size: 0.6rem;
+    }
+
+    .gender-circle-f {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background-color: #ffffff;
+        border: 1px solid #ff69b4;
+        color: #ff69b4;
+        font-weight: bold;
+        font-size: 0.6rem;
     }
 </style>
 {% endblock %}
@@ -159,7 +187,7 @@
                                             <div class="d-flex align-items-center justify-content-between" role="button"
                                                 data-bs-toggle="dropdown" aria-expanded="false"
                                                 data-bs-auto-close="outside" data-bs-boundary="viewport">
-                                                <span>Paciente</span>
+                                                <span>PACIENTE</span>
                                                 <i
                                                     class="fas fa-filter {{ 'text-primary' if nome else 'text-secondary' }}"></i>
                                             </div>
@@ -187,7 +215,7 @@
                                             <div class="d-flex align-items-center justify-content-between" role="button"
                                                 data-bs-toggle="dropdown" aria-expanded="false"
                                                 data-bs-auto-close="outside" data-bs-boundary="viewport">
-                                                <span>Nascimento</span>
+                                                <span>NASCIMENTO</span>
                                                 <i
                                                     class="fas fa-sort {{ 'text-primary' if sort_by == 'nascimento' else 'text-secondary' }}"></i>
                                             </div>
@@ -207,7 +235,7 @@
                                             <div class="d-flex align-items-center justify-content-between" role="button"
                                                 data-bs-toggle="dropdown" aria-expanded="false"
                                                 data-bs-auto-close="outside" data-bs-boundary="viewport">
-                                                <span>Idade</span>
+                                                <span>IDADE</span>
                                                 <i
                                                     class="fas fa-sort {{ 'text-primary' if sort_by == 'idade' else 'text-secondary' }}"></i>
                                             </div>
@@ -225,7 +253,7 @@
                                             <div class="d-flex align-items-center justify-content-between" role="button"
                                                 data-bs-toggle="dropdown" aria-expanded="false"
                                                 data-bs-auto-close="outside" data-bs-boundary="viewport">
-                                                <span>Sexo</span>
+                                                <span>SEXO</span>
                                                 <i
                                                     class="fas fa-filter {{ 'text-primary' if sexo else 'text-secondary' }}"></i>
                                             </div>
@@ -256,7 +284,7 @@
                                             <div class="d-flex align-items-center justify-content-between" role="button"
                                                 data-bs-toggle="dropdown" aria-expanded="false"
                                                 data-bs-auto-close="outside" data-bs-boundary="viewport">
-                                                <span>Modalidade</span>
+                                                <span>MODALIDADE</span>
                                                 <i
                                                     class="fas fa-filter {{ 'text-primary' if modalidade and modalidade != 'all' else 'text-secondary' }}"></i>
                                             </div>
@@ -294,7 +322,7 @@
                                             <div class="d-flex align-items-center justify-content-between" role="button"
                                                 data-bs-toggle="dropdown" aria-expanded="false"
                                                 data-bs-auto-close="outside" data-bs-boundary="viewport">
-                                                <span>Procedimento</span>
+                                                <span>PROCEDIMENTO</span>
                                                 <i
                                                     class="fas fa-filter {{ 'text-primary' if procedimento else 'text-secondary' }}"></i>
                                             </div>
@@ -324,7 +352,7 @@
                                             <div class="d-flex align-items-center justify-content-between" role="button"
                                                 data-bs-toggle="dropdown" aria-expanded="false"
                                                 data-bs-auto-close="outside" data-bs-boundary="viewport">
-                                                <span>Protocolo</span>
+                                                <span>PROTOCOLO</span>
                                                 <i
                                                     class="fas fa-filter {{ 'text-primary' if protocolo else 'text-secondary' }}"></i>
                                             </div>
@@ -354,7 +382,16 @@
                                             <div class="d-flex align-items-center justify-content-between" role="button"
                                                 data-bs-toggle="dropdown" aria-expanded="false"
                                                 data-bs-auto-close="outside" data-bs-boundary="viewport">
-                                                <span>Data</span>
+                                                <span>RESPONSÁVEL</span>
+                                            </div>
+                                        </div>
+                                    </th>
+                                    <th>
+                                        <div class="dropdown">
+                                            <div class="d-flex align-items-center justify-content-between" role="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                data-bs-auto-close="outside" data-bs-boundary="viewport">
+                                                <span>DATA</span>
                                                 <i
                                                     class="fas fa-filter {{ 'text-primary' if data_atendimento and data_atendimento != 'all' else 'text-secondary' }}"></i>
                                             </div>
@@ -390,7 +427,7 @@
                                             <div class="d-flex align-items-center justify-content-between" role="button"
                                                 data-bs-toggle="dropdown" aria-expanded="false"
                                                 data-bs-auto-close="outside" data-bs-boundary="viewport">
-                                                <span>Status</span>
+                                                <span>STATUS</span>
                                                 <i
                                                     class="fas fa-filter {{ 'text-primary' if status else 'text-secondary' }}"></i>
                                             </div>
@@ -406,6 +443,9 @@
                                                         Visual</option>
                                                     <option value="Rascu" {% if status=='Rascu' %}selected{% endif %}>
                                                         Rascu</option>
+                                                    <option value="Assinado" {% if status=='Assinado' %}selected{% endif
+                                                        %}>
+                                                        Assinado</option>
                                                 </select>
                                                 <div class="d-flex justify-content-between">
                                                     <button class="btn btn-sm btn-outline-secondary"
@@ -427,7 +467,7 @@
                                             <div class="d-flex align-items-center justify-content-between" role="button"
                                                 data-bs-toggle="dropdown" aria-expanded="false"
                                                 data-bs-auto-close="outside" data-bs-boundary="viewport">
-                                                <span>Qtd</span>
+                                                <span>QTD</span>
                                                 <i
                                                     class="fas fa-filter {{ 'text-primary' if qtd_valor else 'text-secondary' }}"></i>
                                             </div>
@@ -466,7 +506,7 @@
                                             </div>
                                         </div>
                                     </th>
-                                    <th>Ações</th>
+                                    <th>AÇÕES</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -481,13 +521,25 @@
                                     <td>{{ patient[1] }}</td>
                                     <td>{{ patient[2] }}</td>
                                     <td>{{ patient[3] }}</td>
-                                    <td>{{ patient[4] }}</td>
+                                    <td>
+                                        {% if patient[4] == 'M' %}
+                                        <span class="gender-circle-m">M</span>
+                                        {% elif patient[4] == 'F' %}
+                                        <span class="gender-circle-f">F</span>
+                                        {% else %}
+                                        {{ patient[4] }}
+                                        {% endif %}
+                                    </td>
                                     <td>{{ patient[5] }}</td>
                                     <td>{{ patient[6] }}</td>
                                     <td>{{ patient[15] }}</td>
+                                    <td class="text-truncate" style="max-width: 120px;" title="{{ patient[18] or '' }}">
+                                        {{ patient[18] or '—' }}</td>
                                     <td>{{ patient[8] }}</td>
                                     <td>
                                         {% if patient[9] == 'Impresso' %}
+                                        <span class="status-green">{{ patient[9] }}</span>
+                                        {% elif patient[9] == 'Assinado' %}
                                         <span class="status-green">{{ patient[9] }}</span>
                                         {% elif patient[9] == 'Pronto' %}
                                         <span class="status-orange">{{ patient[9] }}</span>
@@ -509,38 +561,81 @@
                                             </button>
                                             <ul class="dropdown-menu"
                                                 aria-labelledby="dropdownMenuButton-{{ patient[0] }}">
+                                                {% if permissions.get('abrir_weasis_local') %}
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirViewer('{{ patient[7] }}')"><i
                                                             class="fa-solid fa-tv me-2"></i>Abrir no Weasis (local)</a>
                                                 </li>
+                                                {% endif %}
+
+                                                {% if permissions.get('imprimir_estudos') %}
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirModal('{{ patient[7] }}')"><i
                                                             class="fas fa-print me-2"></i>Imprimir imagens</a></li>
+                                                {% endif %}
+
+                                                {% if permissions.get('abrir_weasis_servidor') %}
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirViewerWeb('{{ patient[7] }}')"><i
                                                             class="fas fa-eye me-2"></i>Abrir no Weasis (servidor)</a>
                                                 </li>
+                                                {% endif %}
+
+                                                {% if permissions.get('abrir_no_navegador') %}
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirViewerOHIFWeb('{{ patient[7] }}')"><i
                                                             class="fa-solid fa-globe me-2"></i>Abrir no navegador</a>
                                                 </li>
-                                                {% if user_role == 'admin' %}
+                                                {% endif %}
+
+                                                {% if permissions.get('editar_estudos') %}
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirModalEditar('{{ patient[0] }}', '{{ patient[1] }}', '{{ patient[2] }}', '{{ patient[4] }}')"><i
                                                             class="fas fa-pen me-2"></i>Editar dados</a></li>
                                                 {% endif %}
-                                                {% if user_role == 'admin' %}
+
+                                                {% if permissions.get('laudo') %}
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirLaudo('{{ patient[7] }}')"><i
                                                             class="fa-regular fa-file-word me-2"></i>Laudo</a></li>
                                                 {% endif %}
+
+                                                {% if permissions.get('baixar_imagens') %}
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirModalDownload('{{ patient[7] }}')"><i
                                                             class="fas fa-download me-2"></i>Baixar imagens</a></li>
-                                                {% if user_role == 'admin' %}
+                                                {% endif %}
+
+                                                {% if permissions.get('laudo') %}
+                                                <li><a class="dropdown-item" href="#"
+                                                        onclick="abrirModalTransferir('{{ patient[7] }}')"><i
+                                                            class="fas fa-exchange-alt me-2"></i>Transferir</a></li>
+                                                {% endif %}
+
+                                                {% if permissions.get('imprimir_laudo') or current_user.role and
+                                                current_user.role.lower() == 'admin' %}
+                                                <li class="print-laudo-item"
+                                                    style="display: {{ 'block' if 'Assinado' in (patient[9]|string) else 'none' }};">
+                                                    <a class="dropdown-item" href="#"
+                                                        onclick="window.abrirImpressaoLaudo('{{ patient[7] }}')">
+                                                        <i class="fas fa-print me-2"></i>Imprimir laudo
+                                                    </a>
+                                                </li>
+                                                {% endif %}
+
+                                                {% if permissions.get('excluir_estudos') %}
                                                 <li><a class="dropdown-item text-danger" href="#"
                                                         onclick="deletarPaciente('{{ patient[0] }}', '{{ patient[1] }}', '{{ patient[2] }}', '{{ patient[4] }}', '{{ patient[16] }}')"><i
                                                             class="fas fa-trash-alt me-2"></i>Excluir estudo</a></li>
+                                                {% endif %}
+
+                                                {% if permissions.get('resetar_laudo') %}
+                                                <li>
+                                                    <hr class="dropdown-divider">
+                                                </li>
+                                                <li><a class="dropdown-item text-danger" href="#"
+                                                        onclick="resetarLaudo('{{ patient[7] }}')"><i
+                                                            class="fas fa-undo me-2"></i>Resetar Laudo</a></li>
                                                 {% endif %}
                                             </ul>
                                         </div>
@@ -727,6 +822,34 @@
     </div>
 </div>
 
+<!-- Modal de Transferência -->
+<div class="modal fade" id="transferirModal" tabindex="-1" aria-labelledby="transferirModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="transferirModalLabel">Transferir Estudo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label for="transferDoctorSelect" class="form-label">Selecionar Médico Responsável:</label>
+                        <select class="form-select" id="transferDoctorSelect" required>
+                            <option value="">Selecione o médico</option>
+                        </select>
+                    </div>
+                    <input type="hidden" id="transferStudyPk" value="">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="realizarTransferencia()">Confirmar
+                    Transferência</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 {% block extra_js %}
 <script>
@@ -735,7 +858,7 @@
         const alertMessage = "{{ alert | default('') }}";
         if (alertMessage === "access_denied") {
             window.onload = function () {
-                showAlert('Acesso negado. Apenas administradores podem realizar esta ação.', 'danger');
+                showAlert('Acesso negado. Você não possui permissão para realizar esta ação.', 'danger');
             };
         }
 
@@ -863,24 +986,6 @@
 
         // Código JavaScript para outras funcionalidades
 
-        // Função para exibir alertas
-        function showAlert(message, type) {
-            const alertContainer = document.getElementById('alert-container');
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-            alertDiv.role = 'alert';
-            alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        `;
-            alertContainer.innerHTML = '';
-            alertContainer.appendChild(alertDiv);
-
-            // Auto-hide after 3 seconds
-            setTimeout(() => {
-                alertDiv.remove();
-            }, 3000);
-        }
 
         // Função para abrir o modal de edição
         window.abrirModalEditar = function (pat_id, pat_name, pat_birthdate, pat_sex) {
@@ -902,6 +1007,11 @@
         // Função para abrir o laudo
         window.abrirLaudo = function (protocolo) {
             window.location.href = '/laudo?protocolo=' + protocolo;
+        }
+
+        // Função para abrir a impressão do laudo
+        window.abrirImpressaoLaudo = function (protocolo) {
+            window.open('/laudo/imprimir/' + protocolo, '_blank');
         }
 
         // Função para abrir o modal de edição de estudo
@@ -1061,11 +1171,90 @@
         });
     });
 
+    // Função para exibir alertas (Global)
+    function showAlert(message, type) {
+        const alertContainer = document.getElementById('alert-container');
+        if (!alertContainer) return;
+
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.role = 'alert';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        alertContainer.innerHTML = '';
+        alertContainer.appendChild(alertDiv);
+
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 3000);
+    }
+
     // Modal de Download
     function abrirModalDownload(studyPk) {
         document.getElementById('downloadStudyPk').value = studyPk;
         const modal = new bootstrap.Modal(document.getElementById('downloadModal'));
         modal.show();
+    }
+
+    function abrirModalTransferir(studyPk) {
+        document.getElementById('transferStudyPk').value = studyPk;
+        const select = document.getElementById('transferDoctorSelect');
+        select.innerHTML = '<option value="">Carregando...</option>';
+
+        const modal = new bootstrap.Modal(document.getElementById('transferirModal'));
+        modal.show();
+
+        fetch('/api/medicos')
+            .then(resp => resp.json())
+            .then(medicos => {
+                select.innerHTML = '<option value="">Selecione o médico</option>';
+                medicos.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.pk;
+                    opt.textContent = m.name;
+                    select.appendChild(opt);
+                });
+            })
+            .catch(err => {
+                console.error('Erro ao buscar médicos:', err);
+                select.innerHTML = '<option value="">Erro ao carregar</option>';
+            });
+    }
+
+    function realizarTransferencia() {
+        const studyPk = document.getElementById('transferStudyPk').value;
+        const doctorId = document.getElementById('transferDoctorSelect').value;
+
+        if (!doctorId) {
+            showAlert('Por favor, selecione um médico.', 'warning');
+            return;
+        }
+
+        fetch('/api/transferir_estudo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ study_pk: studyPk, doctor_id: doctorId })
+        })
+            .then(resp => resp.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('Transferência do estudo concluída com sucesso!', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('transferirModal')).hide();
+                    // Opcional: recarregar a página ou atualizar a célula na tabela
+                    setTimeout(() => applyFilters(), 1000);
+                } else {
+                    showAlert('Erro ao transferir estudo: ' + (data.message || 'Erro desconhecido'), 'danger');
+                }
+            })
+            .catch(err => {
+                console.error('Erro na transferência:', err);
+                showAlert('Erro ao conectar com o servidor.', 'danger');
+            });
     }
 
     function downloadImagens() {
@@ -1090,6 +1279,31 @@
         modal.hide();
 
         showAlert('Download iniciado!', 'success');
+    }
+
+    function resetarLaudo(studyPk) {
+        if (!confirm('Tem certeza que deseja resetar o laudo deste registro? Isso apagará o conteúdo do laudo e permitirá fazê-lo novamente.')) {
+            return;
+        }
+
+        fetch('/api/resetar_laudo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ study_pk: studyPk })
+        })
+            .then(resp => resp.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert(data.message, 'success');
+                    setTimeout(() => applyFilters(), 1500);
+                } else {
+                    showAlert('Erro ao resetar laudo: ' + (data.message || 'Erro desconhecido'), 'danger');
+                }
+            })
+            .catch(err => {
+                console.error('Erro ao resetar:', err);
+                showAlert('Erro ao conectar com o servidor.', 'danger');
+            });
     }
 
     function applyFilters() {

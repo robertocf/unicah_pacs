@@ -13,7 +13,7 @@
 
 
 .bg-custom {
-    background-color:  #0d1b49!important;
+    background-color: #0d1b49 !important;
 }
 
 html,
@@ -23,6 +23,7 @@ body {
     display: flex;
     flex-direction: column;
 }
+
 .container-pesquisa {
     font-size: 12px;
 }
@@ -34,15 +35,18 @@ body {
 .form-control {
     font-size: 12px;
 }
+
 .form-select {
     font-size: 12px;
 }
+
 .btn {
     font-size: 12px;
 }
+
 .dropdown-item i {
-  width: 20px;
-  text-align: center;
+    width: 20px;
+    text-align: center;
 }
 
 .content-wrapper {
@@ -93,6 +97,7 @@ body {
     padding: 2px 8px;
     border-radius: 10px;
 }
+
 .status-blue {
     background-color: #007bff;
     color: white;
@@ -121,25 +126,29 @@ body {
 .table {
     table-layout: fixed;
     width: 100%;
-    font-size: 13px;
+    font-size: 12px;
     border-collapse: collapse;
 }
 
 .table td {
+    padding: 0px 6px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     border: 1px solid #dee2e6;
     max-width: 100%;
+    vertical-align: middle;
 }
 
 .table th {
+    padding: 8px 8px;
     overflow: visible;
     white-space: nowrap;
     border: 1px solid #dee2e6;
     max-width: 100%;
     position: relative;
     z-index: 10;
+    vertical-align: middle;
 }
 
 /* Exceção para a célula que contém o dropdown */
@@ -156,79 +165,82 @@ body {
 
 .table th:nth-child(1),
 .table td:nth-child(1) {
-    width: 22px;
+    width: 3%;
     text-align: center;
     overflow: hidden;
 }
 
 .table th:nth-child(2),
 .table td:nth-child(2) {
-    width: 80px;
+    width: 5%;
     text-align: center;
 }
 
 .table th:nth-child(3),
 .table td:nth-child(3) {
-    width: 220px;
+    width: 19%;
     text-align: left;
 }
 
 .table th:nth-child(4),
 .table td:nth-child(4) {
-    width: 65px;
+    width: 7%;
     text-align: center;
 }
 
 .table th:nth-child(5),
 .table td:nth-child(5) {
-    width: 90px;
+    width: 7%;
     text-align: center;
 }
 
 .table th:nth-child(6),
 .table td:nth-child(6) {
-    width: 40px;
+    width: 5%;
     text-align: center;
 }
 
 .table th:nth-child(7),
 .table td:nth-child(7) {
-    width: 65px;
+    width: 8%;
     text-align: center;
 }
 
 .table th:nth-child(8),
 .table td:nth-child(8) {
-    width: 160px;
+    width: 12%;
     text-align: center;
 }
 
 .table th:nth-child(9),
 .table td:nth-child(9) {
-    width: 60px;
+    width: 7%;
     text-align: center;
 }
 
 .table th:nth-child(10),
 .table td:nth-child(10) {
-    width: 95px;
+    width: 6%;
     text-align: center;
-    
+    text-transform: uppercase;
+
 }
 
 .table th:nth-child(11),
 .table td:nth-child(11) {
-    width: 60px;
+    width: 9%;
     text-align: center;
 }
+
 .table th:nth-child(12),
 .table td:nth-child(12) {
-    width: 33px;
+    width: 6%;
     text-align: center;
 }
+
 .table th:nth-child(13),
-.table td:nth-child(12) {
-    width: 38px;
+.table td:nth-child(13) {
+    width: 3%;
     text-align: center;
 }
 

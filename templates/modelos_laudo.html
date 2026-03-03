@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+
+{% block title %}Modelos de Laudo{% endblock %}
+
+{% block extra_css %}
+<style>
+    .custom-toolbar {
+        background: #fff;
+        padding: 0.4rem 0.75rem;
+        border: 1px solid #dee2e6;
+        border-bottom: none;
+        border-radius: 6px 6px 0 0;
+        display: flex;
+        gap: 0.4rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .toolbar-btn {
+        height: 30px;
+        width: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid transparent;
+        background: transparent;
+        color: #495057;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .toolbar-btn:hover {
+        background: #f1f3f5;
+        border-color: #dee2e6;
+    }
+
+    .toolbar-divider {
+        width: 1px;
+        height: 20px;
+        background: #dee2e6;
+        margin: 0 0.15rem;
+    }
+
+    .toolbar-select {
+        height: 30px;
+        padding: 0 0.4rem;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        font-size: 0.82rem;
+        color: #495057;
+    }
+
+    .rich-editor {
+        min-height: 320px;
+        border: 1px solid #dee2e6;
+        border-radius: 0 0 6px 6px;
+        padding: 1rem 1.5rem;
+        outline: none;
+        font-family: 'Times New Roman', serif;
+        font-size: 14pt;
+        line-height: 1.2;
+        overflow-y: auto;
+    }
+
+    .rich-editor p,
+    .rich-editor div {
+        margin: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Modelos de Laudo</h2>
+        <button class="btn btn-primary" onclick="novoModelo()">
+            <i class="fas fa-plus me-2"></i>Novo Modelo
+        </button>
+    </div>
+
+    <!-- Lista de Modelos -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Modelos Cadastrados</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">ID</th>
+                            <th style="width: 120px;">Nome do Modelo</th>
+                            <th style="width: 120px;">Fonte</th>
+                            <th style="width: 80px;">Tamanho</th>
+                            <th style="width: 100px;">Espaçamento</th>
+                            <th style="width: 100px;">Alinhamento</th>
+                            <th style="width: 120px;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for modelo in modelos %}
+                        <tr>
+                            <td>{{ modelo.pk }}</td>
+                            <td>{{ modelo.nome }}</td>
+                            <td><small class="text-muted">{{ modelo.font_family or 'Times New Roman' }}</small></td>
+                            <td><small class="text-muted">{{ modelo.font_size or '3' }}</small></td>
+                            <td><small class="text-muted">{{ modelo.line_spacing or '1.2' }}</small></td>
+                            <td><small class="text-muted">{{ modelo.text_align or 'left' }}</small></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-warning me-1"
+                                    onclick="editarModelo({{ modelo.pk }}, '{{ modelo.nome|replace("'", "\\'") }}', '{{ modelo.font_family or "
+                                    Times New Roman" }}', '{{ modelo.font_size or "3" }}'
+                                    , '{{ modelo.line_spacing or "1.2" }}' , '{{ modelo.text_align or "left" }}' )">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="excluirModelo({{ modelo.pk }})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                <div class="d-none" id="conteudo-{{ modelo.pk }}">{{ modelo.conteudo | safe }}</div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not modelos %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">Nenhum modelo cadastrado.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Cadastro/Edição -->
+<div class="modal fade" id="modalModelo" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Novo Modelo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formModelo">
+                    <input type="hidden" id="modelo_pk" name="pk">
+
+                    <div class="mb-3">
+                        <label for="nome" class="form-label">Nome do Modelo</label>
+                        <input type="text" class="form-control" id="nome" name="nome" required
+                            placeholder="Ex: Raio-X de Tórax">
+                    </div>
+
+                    <!-- Configurações de Formatação -->
+                    <div class="row mb-3 g-2 align-items-end">
+                        <div class="col-auto">
+                            <label class="form-label mb-1" style="font-size:0.8rem;">Fonte</label>
+                            <select id="cfg_font_family" class="form-select form-select-sm" style="min-width:140px;"
+                                onchange="aplicarFormatacaoEditor()">
+                                <option value="Arial">Arial</option>
+                                <option value="Times New Roman" selected>Times New Roman</option>
+                                <option value="Calibri">Calibri</option>
+                                <option value="Verdana">Verdana</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Courier New">Courier New</option>
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label mb-1" style="font-size:0.8rem;">Tamanho</label>
+                            <select id="cfg_font_size" class="form-select form-select-sm"
+                                onchange="aplicarFormatacaoEditor()">
+                                <option value="1">10 pt</option>
+                                <option value="2">12 pt</option>
+                                <option value="3" selected>14 pt</option>
+                                <option value="4">18 pt</option>
+                                <option value="5">24 pt</option>
+                                <option value="6">36 pt</option>
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label mb-1" style="font-size:0.8rem;">Espaçamento</label>
+                            <select id="cfg_line_spacing" class="form-select form-select-sm"
+                                onchange="aplicarFormatacaoEditor()">
+                                <option value="1">Simples (1.0)</option>
+                                <option value="1.2" selected>1.2</option>
+                                <option value="1.5">1.5</option>
+                                <option value="2">Duplo (2.0)</option>
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label mb-1" style="font-size:0.8rem;">Alinhamento padrão</label>
+                            <select id="cfg_text_align" class="form-select form-select-sm"
+                                onchange="aplicarFormatacaoEditor()">
+                                <option value="left">Esquerda</option>
+                                <option value="center">Centro</option>
+                                <option value="right">Direita</option>
+                                <option value="justify">Justificado</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Toolbar do Editor -->
+                    <label class="form-label">Conteúdo do Modelo</label>
+                    <div class="custom-toolbar">
+                        <select id="toolFontFamily" class="toolbar-select" onchange="fmt('fontName', this.value)">
+                            <option value="Arial">Arial</option>
+                            <option value="Times New Roman" selected>Times New Roman</option>
+                            <option value="Calibri">Calibri</option>
+                            <option value="Verdana">Verdana</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Courier New">Courier New</option>
+                        </select>
+                        <select id="toolFontSize" class="toolbar-select" onchange="fmt('fontSize', this.value)">
+                            <option value="1">10 pt</option>
+                            <option value="2">12 pt</option>
+                            <option value="3" selected>14 pt</option>
+                            <option value="4">18 pt</option>
+                            <option value="5">24 pt</option>
+                            <option value="6">36 pt</option>
+                        </select>
+                        <div class="toolbar-divider"></div>
+                        <button type="button" class="toolbar-btn" onclick="fmt('bold')" title="Negrito"><i
+                                class="fas fa-bold"></i></button>
+                        <button type="button" class="toolbar-btn" onclick="fmt('italic')" title="Itálico"><i
+                                class="fas fa-italic"></i></button>
+                        <button type="button" class="toolbar-btn" onclick="fmt('underline')" title="Sublinhado"><i
+                                class="fas fa-underline"></i></button>
+                        <div class="toolbar-divider"></div>
+                        <button type="button" class="toolbar-btn" onclick="fmt('justifyLeft')" title="Esquerda"><i
+                                class="fas fa-align-left"></i></button>
+                        <button type="button" class="toolbar-btn" onclick="fmt('justifyCenter')" title="Centro"><i
+                                class="fas fa-align-center"></i></button>
+                        <button type="button" class="toolbar-btn" onclick="fmt('justifyRight')" title="Direita"><i
+                                class="fas fa-align-right"></i></button>
+                        <button type="button" class="toolbar-btn" onclick="fmt('justifyFull')" title="Justificado"><i
+                                class="fas fa-align-justify"></i></button>
+                        <div class="toolbar-divider"></div>
+                        <button type="button" class="toolbar-btn" onclick="fmt('insertUnorderedList')" title="Lista"><i
+                                class="fas fa-list-ul"></i></button>
+                        <button type="button" class="toolbar-btn" onclick="fmt('insertOrderedList')"
+                            title="Lista Numerada"><i class="fas fa-list-ol"></i></button>
+                        <div class="toolbar-divider"></div>
+                        <button type="button" class="toolbar-btn" onclick="fmt('removeFormat')"
+                            title="Limpar Formatação"><i class="fas fa-eraser"></i></button>
+                    </div>
+                    <div id="editorModelo" class="rich-editor" contenteditable="true"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarModelo()">
+                    <i class="fas fa-save me-1"></i>Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmação de Exclusão -->
+<div class="modal fade" id="modalExclusao" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Exclusão</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Deseja realmente excluir este modelo de laudo?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="btnConfirmarExclusao">Excluir</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const modalModelo = new bootstrap.Modal(document.getElementById('modalModelo'));
+    const modalExclusao = new bootstrap.Modal(document.getElementById('modalExclusao'));
+    const editorEl = document.getElementById('editorModelo');
+
+    function fmt(command, value = null) {
+        editorEl.focus();
+        document.execCommand(command, false, value);
+    }
+
+    function aplicarFormatacaoEditor() {
+        const ff = document.getElementById('cfg_font_family').value;
+        const fs = document.getElementById('cfg_font_size').value;
+        const ls = document.getElementById('cfg_line_spacing').value;
+        const ta = document.getElementById('cfg_text_align').value;
+
+        // Map font-size index to pt
+        const sizeMap = { '1': '10pt', '2': '12pt', '3': '14pt', '4': '18pt', '5': '24pt', '6': '36pt' };
+
+        editorEl.style.fontFamily = ff;
+        editorEl.style.fontSize = sizeMap[fs] || '14pt';
+        editorEl.style.lineHeight = ls;
+        editorEl.style.textAlign = ta;
+
+        // Sync toolbar selects
+        document.getElementById('toolFontFamily').value = ff;
+        document.getElementById('toolFontSize').value = fs;
+    }
+
+    function novoModelo() {
+        document.getElementById('modalTitle').innerText = 'Novo Modelo';
+        document.getElementById('formModelo').reset();
+        document.getElementById('modelo_pk').value = '';
+        editorEl.innerHTML = '';
+
+        // Reset defaults
+        document.getElementById('cfg_font_family').value = 'Times New Roman';
+        document.getElementById('cfg_font_size').value = '3';
+        document.getElementById('cfg_line_spacing').value = '1.2';
+        document.getElementById('cfg_text_align').value = 'left';
+        aplicarFormatacaoEditor();
+        modalModelo.show();
+    }
+
+    function editarModelo(pk, nome, fontFamily, fontSize, lineSpacing, textAlign) {
+        document.getElementById('modalTitle').innerText = 'Editar Modelo';
+        document.getElementById('modelo_pk').value = pk;
+        document.getElementById('nome').value = nome;
+
+        // Aplicar configurações salvas
+        document.getElementById('cfg_font_family').value = fontFamily || 'Times New Roman';
+        document.getElementById('cfg_font_size').value = fontSize || '3';
+        document.getElementById('cfg_line_spacing').value = lineSpacing || '1.2';
+        document.getElementById('cfg_text_align').value = textAlign || 'left';
+        aplicarFormatacaoEditor();
+
+        // Carregar conteúdo no editor rico
+        const conteudoEl = document.getElementById(`conteudo-${pk}`);
+        editorEl.innerHTML = conteudoEl ? conteudoEl.innerHTML : '';
+
+        modalModelo.show();
+    }
+
+    function salvarModelo() {
+        const pk = document.getElementById('modelo_pk').value;
+        const nome = document.getElementById('nome').value;
+        const originalConteudo = editorEl.innerHTML;
+        const font_family = document.getElementById('cfg_font_family').value;
+        const font_size = document.getElementById('cfg_font_size').value;
+        const line_spacing = document.getElementById('cfg_line_spacing').value;
+        const text_align = document.getElementById('cfg_text_align').value;
+
+        if (!nome || !originalConteudo.trim() || originalConteudo === '<br>') {
+            alert('Por favor, preencha o nome e o conteúdo do modelo.');
+            return;
+        }
+
+        // Map font-size index to pt for CSS
+        const sizeMap = { '1': '10pt', '2': '12pt', '3': '14pt', '4': '18pt', '5': '24pt', '6': '36pt' };
+
+        // Envolve o conteúdo em uma div com os estilos para garantir persistência ao salvar
+        const conteudo = `<div style="font-family: ${font_family}; font-size: ${sizeMap[font_size] || '14pt'}; line-height: ${line_spacing}; text-align: ${text_align};">${originalConteudo}</div>`;
+
+        fetch('/configuracoes/modelos_laudo/salvar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pk, nome, conteudo, font_family, font_size, line_spacing, text_align })
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Erro ao salvar: ' + data.message);
+                }
+            });
+    }
+
+    function excluirModelo(pk) {
+        const btnConfirmar = document.getElementById('btnConfirmarExclusao');
+        btnConfirmar.onclick = function () {
+            fetch(`/configuracoes/modelos_laudo/excluir/${pk}`, { method: 'DELETE' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) { location.reload(); }
+                    else { alert('Erro ao excluir: ' + data.message); }
+                });
+            modalExclusao.hide();
+        };
+        modalExclusao.show();
+    }
+</script>
+{% endblock %}

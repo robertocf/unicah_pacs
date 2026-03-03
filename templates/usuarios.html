@@ -4,43 +4,11 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2 class="mb-4">Cadastro de Usuários</h2>
-
-    <!-- Formulário de Cadastro -->
-    <div class="card">
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('cadastrar_usuario') }}">
-                <div class="mb-3">
-                    <label for="login" class="form-label">Login</label>
-                    <input type="text" class="form-control" id="login" name="user_id" required>
-                </div>
-
-                <div class="mb-3">
-                    <label for="nome" class="form-label">Nome</label>
-                    <input type="text" class="form-control" id="nome" name="nome" required>
-                </div>
-
-                <div class="mb-3">
-                    <label for="senha" class="form-label">Senha</label>
-                    <input type="password" class="form-control" id="senha" name="senha" required>
-                </div>
-
-                <div class="mb-3">
-                    <label for="grupo" class="form-label">Grupo de Acesso</label>
-                    <select class="form-select" id="grupo" name="grupo" required>
-                        <option value="">Selecione um grupo</option>
-                        <option value="admin">Administrador</option>
-                        <option value="medico">Médico</option>
-                        <option value="tecnico">Técnico</option>
-                    </select>
-                </div>
-                <div class="mb-3 form-check">
-                    <input type="checkbox" class="form-check-input" id="active" name="active">
-                    <label class="form-check-label" for="active">Ativo</label>
-                </div>
-                <button type="submit" class="btn btn-primary">Cadastrar</button>
-            </form>
-        </div>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Cadastro de Usuários</h2>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCadastro">
+            <i class="fas fa-plus me-2"></i>Cadastrar Usuário
+        </button>
     </div>
 
     <!-- Lista de Usuários -->
@@ -52,32 +20,128 @@
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Login</th>
-                        <th>Nome</th>
-                        <th>Grupo</th>
-                        <th>Status</th>
-                        <th>Ações</th>
+                        <th style="width: 5%">ID</th>
+                        <th style="width: 20%">Login</th>
+                        <th style="width: 25%">Nome</th>
+                        <th style="width: 15%">Grupo</th>
+                        <th style="width: 10%">Médico</th>
+                        <th style="width: 10%">Status</th>
+                        <th style="width: 15%">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for usuario in usuarios %}
-                    <tr data-id="{{ usuario.id }}" data-active="{{ '1' if usuario.active else '0' }}">
+                    <tr data-id="{{ usuario.id }}">
                         <td>{{ usuario.id }}</td>
                         <td>{{ usuario.user_id }}</td>
                         <td>{{ usuario.nome }}</td>
                         <td>{{ usuario.grupo }}</td>
+                        <td>
+                            {% if usuario.is_medico %}
+                            <span class="badge bg-info">Sim</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Não</span>
+                            {% endif %}
+                        </td>
                         <td>{{ 'Ativo' if usuario.active else 'Inativo' }}</td>
                         <td>
-                            <button class="btn btn-sm btn-warning" onclick="editarUsuario('{{ usuario.id }}')"><i
-                                    class="fas fa-edit"></i></button>
-                            <button class="btn btn-sm btn-danger" onclick="excluirUsuario('{{ usuario.id }}')"><i
-                                    class="fas fa-trash"></i></button>
+                            <button class="btn btn-sm btn-warning" onclick="editarUsuario('{{ usuario.id }}')"
+                                title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="excluirUsuario('{{ usuario.id }}')"
+                                title="Excluir">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Cadastro -->
+<div class="modal fade" id="modalCadastro" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cadastrar Usuário</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('cadastrar_usuario') }}" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="user_id" class="form-label">Login</label>
+                        <input type="text" class="form-control" id="user_id" name="user_id" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="nome" class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="nome" name="nome" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="senha" class="form-label">Senha</label>
+                        <input type="password" class="form-control" id="senha" name="senha" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="grupo" class="form-label">Grupo de Acesso</label>
+                        <select class="form-select" id="grupo" name="grupo" required>
+                            <option value="">Selecione um grupo</option>
+                            <option value="admin">Administrador</option>
+                            <option value="medico">Médico</option>
+                            <option value="tecnico">Técnico</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="active" name="active" checked>
+                        <label class="form-check-label" for="active">Ativo</label>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="is_medico" name="is_medico"
+                            onchange="toggleMedFields(this, 'medFields')">
+                        <label class="form-check-label" for="is_medico">Usuário é Médico?</label>
+                    </div>
+
+                    <div id="medFields" style="display: none;">
+                        <div class="mb-3">
+                            <label for="crm" class="form-label">CRM</label>
+                            <input type="text" class="form-control" id="crm" name="crm">
+                        </div>
+                        <div class="mb-3">
+                            <label for="conselho" class="form-label">Conselho</label>
+                            <input type="text" class="form-control" id="conselho" name="conselho" placeholder="Ex: CRM">
+                        </div>
+                        <div class="mb-3">
+                            <label for="estado" class="form-label">Estado (UF)</label>
+                            <input type="text" class="form-control" id="estado" name="estado" maxlength="2"
+                                placeholder="Ex: SP">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="assinatura" class="form-label">Assinatura Digitalizada (JPG/PNG)</label>
+                            <input type="file" class="form-control" id="assinatura" name="assinatura" accept="image/*"
+                                onchange="previewImage(this, 'preview_assinatura')">
+                            <div class="mt-2">
+                                <img id="preview_assinatura" src="#" alt="Preview"
+                                    style="max-width: 200px; display: none; border: 1px solid #ddd; padding: 5px;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer px-0 pb-0">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Cadastrar</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -92,20 +156,23 @@
             </div>
             <div class="modal-body">
                 <form id="formEdicao">
-                    <input type="hidden" id="edit_id" name="id">
+                    <input type="hidden" id="edit_id">
                     <div class="mb-3">
-                        <label for="edit_login" class="form-label">Login</label>
-                        <input type="text" class="form-control" id="edit_login" name="user_id" required>
+                        <label for="edit_user_id" class="form-label">Login</label>
+                        <input type="text" class="form-control" id="edit_user_id" name="user_id" required>
                     </div>
+
                     <div class="mb-3">
                         <label for="edit_nome" class="form-label">Nome</label>
                         <input type="text" class="form-control" id="edit_nome" name="nome" required>
                     </div>
+
                     <div class="mb-3">
                         <label for="edit_senha" class="form-label">Nova Senha</label>
                         <input type="password" class="form-control" id="edit_senha" name="senha"
-                            placeholder="Deixe em branco para manter a senha atual">
+                            placeholder="Deixe em branco para não alterar">
                     </div>
+
                     <div class="mb-3">
                         <label for="edit_grupo" class="form-label">Grupo de Acesso</label>
                         <select class="form-select" id="edit_grupo" name="grupo" required>
@@ -115,9 +182,42 @@
                             <option value="tecnico">Técnico</option>
                         </select>
                     </div>
+
                     <div class="mb-3 form-check">
                         <input type="checkbox" class="form-check-input" id="edit_active" name="active">
                         <label class="form-check-label" for="edit_active">Ativo</label>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="edit_is_medico" name="is_medico"
+                            onchange="toggleMedFields(this, 'editMedFields')">
+                        <label class="form-check-label" for="edit_is_medico">Usuário é Médico?</label>
+                    </div>
+
+                    <div id="editMedFields" style="display: none;">
+                        <div class="mb-3">
+                            <label for="edit_crm" class="form-label">CRM</label>
+                            <input type="text" class="form-control" id="edit_crm" name="crm">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_conselho" class="form-label">Conselho</label>
+                            <input type="text" class="form-control" id="edit_conselho" name="conselho">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_estado" class="form-label">Estado (UF)</label>
+                            <input type="text" class="form-control" id="edit_estado" name="estado" maxlength="2">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_assinatura" class="form-label">Alterar Assinatura Digitalizada</label>
+                            <input type="file" class="form-control" id="edit_assinatura" name="assinatura"
+                                accept="image/*" onchange="previewImage(this, 'edit_preview_assinatura')">
+                            <div class="mt-2">
+                                <img id="edit_preview_assinatura" src="#" alt="Preview"
+                                    style="max-width: 200px; display: none; border: 1px solid #ddd; padding: 5px;">
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -151,76 +251,127 @@
 
 {% block extra_js %}
 <script>
+    function toggleMedFields(checkbox, fieldsId) {
+        document.getElementById(fieldsId).style.display = checkbox.checked ? 'block' : 'none';
+    }
+
+    function mostrarAlerta(mensagem, tipo) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${tipo} alert-dismissible fade show`;
+        alertDiv.role = 'alert';
+        alertDiv.innerHTML = `
+            ${mensagem}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.card'));
+        setTimeout(() => alertDiv.remove(), 4000);
+    }
+
+    function previewImage(input, previewId) {
+        const preview = document.getElementById(previewId);
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+            }
+            reader.readAsDataURL(input.files[0]);
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+
     function editarUsuario(id) {
-        const usuario = document.querySelector(`tr[data-id="${id}"]`);
-        const modal = new bootstrap.Modal(document.getElementById('modalEdicao'));
+        window.currentUserId = id;
+        fetch(`/configuracoes/usuarios/buscar/${id}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('edit_id').value = id;
+                document.getElementById('edit_user_id').value = data.user_id;
+                document.getElementById('edit_nome').value = data.nome;
+                document.getElementById('edit_grupo').value = data.grupo;
+                document.getElementById('edit_active').checked = data.active;
 
-        document.getElementById('edit_id').value = id;
-        document.getElementById('edit_login').value = usuario.querySelector('td:nth-child(2)').textContent;
-        document.getElementById('edit_nome').value = usuario.querySelector('td:nth-child(3)').textContent;
-        document.getElementById('edit_grupo').value = usuario.querySelector('td:nth-child(4)').textContent;
+                const isMedico = data.is_medico;
+                document.getElementById('edit_is_medico').checked = isMedico;
+                document.getElementById('editMedFields').style.display = isMedico ? 'block' : 'none';
 
-        // Preencher o campo "Ativo" com base no atributo data-active
-        const isActive = usuario.getAttribute('data-active') === '1';
-        document.getElementById('edit_active').checked = isActive;
+                document.getElementById('edit_crm').value = data.crm || '';
+                document.getElementById('edit_conselho').value = data.conselho || '';
+                document.getElementById('edit_estado').value = data.estado || '';
 
-        modal.show();
+                // Assinatura
+                const preview = document.getElementById('edit_preview_assinatura');
+                if (data.assinatura_path) {
+                    preview.src = `/static/${data.assinatura_path}`;
+                    preview.style.display = 'block';
+                } else {
+                    preview.src = '#';
+                    preview.style.display = 'none';
+                }
+
+                // Reset file input
+                document.getElementById('edit_assinatura').value = '';
+
+                const modal = new bootstrap.Modal(document.getElementById('modalEdicao'));
+                modal.show();
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro ao carregar dados do usuário', 'danger');
+            });
     }
 
     function salvarEdicao() {
-        const formData = new FormData(document.getElementById('formEdicao'));
-        const id = formData.get('id');
+        const form = document.getElementById('formEdicao');
+        const formData = new FormData(form);
+        const id = window.currentUserId;
+
+        // Fix checkbox behavior for FormData/Flask
+        if (!document.getElementById('edit_active').checked) formData.delete('active');
+        if (!document.getElementById('edit_is_medico').checked) formData.delete('is_medico');
 
         fetch(`/configuracoes/usuarios/editar/${id}`, {
             method: 'POST',
             body: formData
         })
-            .then(response => {
-                // Verifica se a resposta é um redirecionamento (HTML) em vez de JSON
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('text/html')) {
-                    // Se retornou HTML, significa que foi redirecionado (usuário sem permissão)
-                    alert('Acesso negado. Apenas administradores podem realizar esta ação.');
-                    return;
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                if (data && data.success) {
-                    window.location.reload();
-                } else if (data) {
-                    alert('Erro ao salvar as alterações: ' + data.message);
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('modalEdicao')).hide();
+                    mostrarAlerta('Usuário atualizado com sucesso!', 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    mostrarAlerta('Erro: ' + data.message, 'danger');
                 }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro ao salvar usuário', 'danger');
             });
     }
 
     function excluirUsuario(id) {
+        window.userIdParaExcluir = id;
         const modal = new bootstrap.Modal(document.getElementById('modalExclusao'));
-        const btnConfirmar = document.getElementById('btnConfirmarExclusao');
-
-        btnConfirmar.onclick = function () {
-            fetch(`/configuracoes/usuarios/excluir/${id}`, {
-                method: 'DELETE'
-            })
-                .then(response => {
-                    // Verifica se a resposta é um redirecionamento (HTML) em vez de JSON
-                    const contentType = response.headers.get('content-type');
-                    if (contentType && contentType.includes('text/html')) {
-                        // Se retornou HTML, significa que foi redirecionado (usuário sem permissão)
-                        alert('Acesso negado. Apenas administradores podem realizar esta ação.');
-                        return;
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data && data.success) {
-                        window.location.reload();
-                    }
-                });
-            modal.hide();
-        };
-
         modal.show();
     }
+
+    document.getElementById('btnConfirmarExclusao').addEventListener('click', function () {
+        const id = window.userIdParaExcluir;
+        fetch(`/configuracoes/usuarios/excluir/${id}`, {
+            method: 'DELETE'
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('modalExclusao')).hide();
+                    mostrarAlerta('Usuário excluído com sucesso!', 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    mostrarAlerta('Erro ao excluir usuário', 'danger');
+                }
+            });
+    });
 </script>
 {% endblock %}

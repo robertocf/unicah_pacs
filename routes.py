@@ -31,6 +31,9 @@ from services.disk_reaming import get_free_space_bytes, get_average_daily_usage_
 from services.storage_stats import get_storage_stats
 from services.audit_logs import insert_log_registro, _get_existing_patient_data, insert_login_log
 from services.permissions import get_user_permissions, list_permission_definitions
+from models.ReportTemplate import ReportTemplate
+from models.ReportLayout import ReportLayout
+from models.AutoTexto import AutoTexto
 
 @app.context_processor
 def inject_permissions():
@@ -234,6 +237,23 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def permission_required(permission_key):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                return redirect(url_for('login'))
+            
+            permissions = get_user_permissions(current_user)
+            if not permissions.get(permission_key):
+                # Se for uma requisição AJAX, retorna JSON
+                if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': False, 'message': 'Você não tem permissão para esta ação.'}), 403
+                return redirect(url_for('homepage', alert='access_denied'))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -357,7 +377,8 @@ def home():
 @login_required
 def homepage():
     alert = request.args.get('alert')
-    return carregar_homepage(user_name=current_user.name, user_id=current_user.pk, user_role=current_user.role, alert=alert)
+    permissions = get_user_permissions(current_user)
+    return carregar_homepage(user_name=current_user.name, user_id=current_user.pk, user_role=current_user.role, alert=alert, permissions=permissions)
 
 @app.route("/generate_pdf/<study_uid>")
 @login_required
@@ -366,7 +387,7 @@ def generate_pdf(study_uid):
 
 @app.route("/laudo", methods=["GET", "POST"])
 @login_required
-@admin_required
+@permission_required('laudo')
 def editor():
     protocolo = request.values.get("protocolo") or request.args.get("protocolo")
     if not protocolo:
@@ -395,10 +416,11 @@ def editor():
                         UPDATE study 
                         SET study_custom1 = 'R', 
                             study_custom2 = to_char(NOW() - INTERVAL '1 hour', 'DD/MM/YYYY HH24:MI:SS'),
-                            study_custom3 = %s 
+                            study_custom3 = %s,
+                            doctor_id = %s
                         WHERE pk = %s
                         """,
-                        (current_user.name, protocolo)
+                        (current_user.name, current_user.pk, protocolo)
                     )
                     conn.commit()
                 except Exception as db_err:
@@ -412,10 +434,39 @@ def editor():
                     flash('Rascunho salvo com sucesso.', 'success')
                 else:
                     flash('Laudo gravado com sucesso.', 'success')
+
             elif action == 'sign':
-                flash('Laudo assinado.', 'success')
-            else:
-                flash('Ação inválida ao salvar laudo.', 'error')
+                # Atualiza status no banco para 'A' (Assinado)
+                conn = get_db_connection()
+                cur = conn.cursor()
+                try:
+                    cur.execute(
+                        """
+                        UPDATE study 
+                        SET study_custom1 = 'A', 
+                            study_custom2 = to_char(NOW() - INTERVAL '1 hour', 'DD/MM/YYYY HH24:MI:SS'),
+                            study_custom3 = %s,
+                            doctor_id = %s
+                        WHERE pk = %s
+                        """,
+                        (current_user.name, current_user.pk, protocolo)
+                    )
+                    conn.commit()
+                    flash('Laudo assinado.', 'success')
+                except Exception as db_err:
+                    conn.rollback()
+                    print(f"Erro ao assinar laudo: {db_err}")
+                    flash('Erro ao assinar laudo.', 'error')
+                finally:
+                    cur.close()
+                    conn.close()
+                
+                # Salva conteúdo final também
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(conteudo)
+                
+                # Redireciona para homepage após assinar
+                return redirect(url_for('homepage'))
         except Exception as e:
             print(f"Erro ao processar laudo: {e}")
             flash('Erro ao processar laudo.', 'error')
@@ -439,7 +490,7 @@ def editor():
             """
             SELECT 
                 p.pat_id,
-                split_part(p.pat_name, '^^^^', 1) AS pat_name,
+                split_part(p.pat_name, '^', 1) AS pat_name,
                 CASE 
                     WHEN LENGTH(p.pat_birthdate) = 8 AND p.pat_birthdate ~ '^[0-9]{8}$' 
                     THEN to_char(to_date(p.pat_birthdate, 'YYYYMMDD'), 'DD/MM/YYYY')
@@ -451,7 +502,8 @@ def editor():
                 to_char(s.study_datetime, 'DD/MM/YYYY HH24:MI:SS') as study_datetime,
                 s.accession_no,
                 s.ref_physician,
-                s.study_id
+                s.study_id,
+                s.study_custom1
             FROM patient p
             JOIN study s ON s.patient_fk = p.pk
             WHERE s.pk = %s
@@ -471,7 +523,8 @@ def editor():
                 'data_estudo': row[6],
                 'accession': row[7],
                 'medico': row[8],
-                'protocolo_id': row[9]
+                'protocolo_id': row[9],
+                'status': row[10]
             }
     except Exception as e:
         print(f"Erro ao carregar dados do paciente: {e}")
@@ -482,11 +535,157 @@ def editor():
         except Exception:
             pass
 
-    return render_template("laudo.html", protocolo=protocolo, paciente=paciente, laudo=laudo_obj)
+    return render_template("laudo.html", protocolo=protocolo, paciente=paciente, laudo=laudo_obj, SERVER_IP=SERVER_IP)
+
+@app.route("/laudo/imprimir/<protocolo>")
+@login_required
+@permission_required('imprimir_laudo')
+def imprimir_laudo(protocolo):
+    paciente = None
+    laudo_obj = None
+    layout = None
+    try:
+        # Tenta carregar rascunho existente
+        laudos_dir = os.path.join('static', 'laudos', 'rascunhos')
+        file_path = os.path.join(laudos_dir, f"{protocolo}_rascunho.html")
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                laudo_obj = {'conteudo': f.read()}
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT 
+                p.pat_id,
+                split_part(p.pat_name, '^', 1) AS pat_name,
+                CASE 
+                    WHEN LENGTH(p.pat_birthdate) = 8 AND p.pat_birthdate ~ '^[0-9]{8}$' 
+                    THEN to_char(to_date(p.pat_birthdate, 'YYYYMMDD'), 'DD/MM/YYYY')
+                    ELSE ''
+                END as pat_birthdate,
+                p.pat_sex,
+                EXTRACT(YEAR FROM AGE(TO_DATE(p.pat_birthdate, 'YYYYMMDD'))) || ' anos' AS idade,
+                s.study_desc,
+                to_char(s.study_datetime, 'DD/MM/YYYY HH24:MI:SS') as study_datetime,
+                s.accession_no,
+                s.ref_physician,
+                s.study_id,
+                s.study_custom1
+            FROM patient p
+            JOIN study s ON s.patient_fk = p.pk
+            WHERE s.pk = %s
+            LIMIT 1
+            """,
+            (protocolo,)
+        )
+        row = cur.fetchone()
+        if row:
+            paciente = {
+                'pat_id': row[0],
+                'nome': row[1],
+                'data_nascimento': row[2],
+                'sexo': row[3],
+                'idade': row[4],
+                'procedimento': row[5],
+                'data_estudo': row[6],
+                'accession': row[7],
+                'medico': row[8],
+                'protocolo_id': row[9],
+                'status': row[10]
+            }
+        
+        # Load layout
+        layout_obj = ReportLayout.query.filter_by(is_default=True).first()
+        if not layout_obj:
+            layout_obj = ReportLayout.query.first()
+        if layout_obj:
+            layout = layout_obj.to_dict()
+
+    except Exception as e:
+        print(f"Erro ao carregar dados para impressão: {e}")
+    finally:
+        try:
+            cur.close()
+            conn.close()
+        except Exception:
+            pass
+
+    return render_template("imprimir_laudo.html", protocolo=protocolo, paciente=paciente, laudo=laudo_obj, layout=layout, SERVER_IP=SERVER_IP)
+
+@app.route('/api/medicos', methods=['GET'])
+@login_required
+def list_medicos():
+    medicos = User.query.filter_by(is_medico=True, active=True).all()
+    return jsonify([{'pk': m.pk, 'name': m.name} for m in medicos])
+
+@app.route('/api/transferir_estudo', methods=['POST'])
+@login_required
+def transferir_estudo():
+    data = request.json
+    study_pk = data.get('study_pk')
+    doctor_id = data.get('doctor_id')
+    
+    if not study_pk or not doctor_id:
+        return jsonify({'success': False, 'message': 'Dados incompletos.'}), 400
+        
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE study SET doctor_id = %s WHERE pk = %s", (doctor_id, study_pk))
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+@app.route('/api/resetar_laudo', methods=['POST'])
+@login_required
+@permission_required('resetar_laudo')
+def resetar_laudo():
+    data = request.json
+    study_pk = data.get('study_pk')
+    
+    if not study_pk:
+        return jsonify({'success': False, 'message': 'PK do estudo não fornecido.'}), 400
+        
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        # Resetar metadados do laudo no banco
+        cur.execute("""
+            UPDATE study 
+            SET study_custom1 = NULL, 
+                study_custom2 = NULL, 
+                study_custom3 = NULL, 
+                doctor_id = NULL 
+            WHERE pk = %s
+        """, (study_pk,))
+        
+        # Caminho do arquivo de rascunho
+        laudos_dir = os.path.join('static', 'laudos', 'rascunhos')
+        file_path = os.path.join(laudos_dir, f"{study_pk}_rascunho.html")
+        
+        # Deletar arquivo se existir
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            
+        conn.commit()
+        return jsonify({'success': True, 'message': 'Laudo resetado com sucesso.'})
+    except Exception as e:
+        conn.rollback()
+        print(f"Erro ao resetar laudo: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 @app.route('/laudo/audio_upload', methods=['POST'])
 @login_required
-@admin_required
+@permission_required('laudo')
 def laudo_audio_upload():
     try:
         protocolo = request.form.get('protocolo')
@@ -549,7 +748,7 @@ def select_images(study_uid):
 
 @app.route('/dicom/importar', methods=['GET'])
 @login_required
-@admin_required
+@permission_required('acessar_importar_dicom')
 def importar_dicom_page():
     return render_template(
         'importar_dicom.html',
@@ -561,7 +760,7 @@ def importar_dicom_page():
 
 @app.route('/dicom/importar/preview', methods=['POST'])
 @login_required
-@admin_required
+@permission_required('acessar_importar_dicom')
 def importar_dicom_preview():
     try:
         files = request.files.getlist('files')
@@ -659,7 +858,7 @@ def importar_dicom_preview():
 
 @app.route('/dicom/importar/enviar', methods=['POST'])
 @login_required
-@admin_required
+@permission_required('acessar_importar_dicom')
 def importar_dicom_enviar():
     data = request.get_json(silent=True) or {}
     batch_id = data.get('batch_id')
@@ -714,7 +913,7 @@ def importar_dicom_enviar():
 
 @app.route("/deletar_paciente", methods=["POST"])
 @login_required
-@admin_required
+@permission_required('excluir_estudos')
 def deletar_paciente():
     data = request.get_json()
     pat_id = data["pat_id"]
@@ -1004,7 +1203,7 @@ def generate_selected_pdf(study_uid):
 
 @app.route("/editar_paciente", methods=["POST"])
 @login_required
-@admin_required
+@permission_required('editar_estudos')
 def editar_paciente():
     data = request.get_json()
     pat_id = data["pat_id"]
@@ -1042,7 +1241,7 @@ PID|1||{pat_id}^^^||{pat_name}^^^||{pat_birthdate.replace('-','')}|{pat_sex}||""
 
 @app.route("/editar_estudo", methods=["POST"])
 @login_required
-@admin_required
+@permission_required('editar_estudos')
 def editar_estudo():
     data = request.get_json()
     pk = data["pk"]
@@ -1645,8 +1844,18 @@ def editar_empresa(id):
 def usuarios():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('SELECT pk, user_id, name, role, active FROM users_app')
-    usuarios = [{'id': row[0], 'user_id': row[1], 'nome': row[2], 'grupo': row[3], 'active': row[4]} for row in cur.fetchall()]
+    cur.execute('SELECT pk, user_id, name, role, active, is_medico, crm, conselho, estado FROM users_app ORDER BY name')
+    usuarios = [{
+        'id': row[0], 
+        'user_id': row[1], 
+        'nome': row[2], 
+        'grupo': row[3], 
+        'active': row[4],
+        'is_medico': row[5],
+        'crm': row[6],
+        'conselho': row[7],
+        'estado': row[8]
+    } for row in cur.fetchall()]
     cur.close()
     conn.close()
     return render_template('usuarios.html', usuarios=usuarios)
@@ -1659,13 +1868,30 @@ def cadastrar_usuario():
     nome = request.form['nome']
     senha = request.form['senha']
     grupo = request.form['grupo']
-    active = 'active' in request.form  # Converte checkbox para boolean
+    active = 'active' in request.form
+    is_medico = 'is_medico' in request.form
+    crm = request.form.get('crm')
+    conselho = request.form.get('conselho')
+    estado = request.form.get('estado')
+    assinatura_path = None
+
+    if is_medico and 'assinatura' in request.files:
+        file = request.files['assinatura']
+        if file and file.filename != '':
+            filename = secure_filename(f"assinatura_{user_id}_{file.filename}")
+            upload_path = os.path.join('static', 'assinaturas')
+            os.makedirs(upload_path, exist_ok=True)
+            file.save(os.path.join(upload_path, filename))
+            assinatura_path = f"assinaturas/{filename}"
+
     senha_hash = bcrypt.hashpw(senha.encode('utf-8'), bcrypt.gensalt())
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        cur.execute('INSERT INTO users_app (user_id, name, password, role, active) VALUES (%s, %s, %s, %s, %s)',
-                    (user_id, nome, senha_hash.decode('utf-8'), grupo, active))
+        cur.execute(
+            'INSERT INTO users_app (user_id, name, password, role, active, is_medico, crm, conselho, estado, assinatura_path) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+            (user_id, nome, senha_hash.decode('utf-8'), grupo, active, is_medico, crm, conselho, estado, assinatura_path)
+        )
         conn.commit()
         flash('Usuário cadastrado com sucesso!', 'success')
     except Exception as e:
@@ -1693,6 +1919,35 @@ def excluir_usuario(id):
         cur.close()
         conn.close()
 
+@app.route('/configuracoes/usuarios/buscar/<int:id>')
+@login_required
+@admin_required
+def buscar_usuario(id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute('SELECT user_id, name, role, active, is_medico, crm, conselho, estado, assinatura_path FROM users_app WHERE pk = %s', (id,))
+        user = cur.fetchone()
+        if user:
+            return jsonify({
+                'user_id': user[0],
+                'nome': user[1],
+                'grupo': user[2],
+                'active': user[3],
+                'is_medico': user[4],
+                'crm': user[5],
+                'conselho': user[6],
+                'estado': user[7],
+                'assinatura_path': user[8]
+            })
+        else:
+            return jsonify({'error': 'Usuário não encontrado'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+
 @app.route('/configuracoes/usuarios/editar/<int:id>', methods=['POST'])
 @login_required
 @admin_required
@@ -1701,22 +1956,54 @@ def editar_usuario(id):
     nome = request.form['nome']
     senha = request.form.get('senha')
     grupo = request.form['grupo']    
-    active = 'active' in request.form  # Converte checkbox para boolean
+    active = 'active' in request.form
+    is_medico = 'is_medico' in request.form
+    crm = request.form.get('crm')
+    conselho = request.form.get('conselho')
+    estado = request.form.get('estado')
+
     conn = get_db_connection()
     cur = conn.cursor()
     try:
+        # Busca assinatura atual
+        cur.execute('SELECT assinatura_path FROM users_app WHERE pk = %s', (id,))
+        old_assinatura = cur.fetchone()[0]
+        assinatura_path = old_assinatura
+
+        if is_medico and 'assinatura' in request.files:
+            file = request.files['assinatura']
+            if file and file.filename != '':
+                filename = secure_filename(f"assinatura_{user_id}_{file.filename}")
+                upload_path = os.path.join('static', 'assinaturas')
+                os.makedirs(upload_path, exist_ok=True)
+                file.save(os.path.join(upload_path, filename))
+                assinatura_path = f"assinaturas/{filename}"
+                
+                # Opcional: deletar arquivo antigo se mudou
+                if old_assinatura and old_assinatura != assinatura_path:
+                    try:
+                        old_file_path = os.path.join('static', old_assinatura)
+                        if os.path.exists(old_file_path):
+                            os.remove(old_file_path)
+                    except:
+                        pass
+
         if senha and senha.strip():
             senha_hash = bcrypt.hashpw(senha.encode('utf-8'), bcrypt.gensalt())
-            cur.execute('UPDATE users_app SET user_id = %s, name = %s, password = %s, role = %s, active = %s WHERE pk = %s',
-                        (user_id, nome, senha_hash.decode('utf-8'), grupo, active, id))
+            cur.execute(
+                'UPDATE users_app SET user_id = %s, name = %s, password = %s, role = %s, active = %s, is_medico = %s, crm = %s, conselho = %s, estado = %s, assinatura_path = %s WHERE pk = %s',
+                (user_id, nome, senha_hash.decode('utf-8'), grupo, active, is_medico, crm, conselho, estado, assinatura_path, id)
+            )
         else:
-            cur.execute('UPDATE users_app SET user_id = %s, name = %s, role = %s, active = %s WHERE pk = %s',
-                        (user_id, nome, grupo, active, id))
+            cur.execute(
+                'UPDATE users_app SET user_id = %s, name = %s, role = %s, active = %s, is_medico = %s, crm = %s, conselho = %s, estado = %s, assinatura_path = %s WHERE pk = %s',
+                (user_id, nome, grupo, active, is_medico, crm, conselho, estado, assinatura_path, id)
+            )
         conn.commit()
         return jsonify({'success': True, 'message': 'Usuário atualizado com sucesso'})
     except Exception as e:
         conn.rollback()
-        return jsonify({'success': False, 'message': 'Erro ao atualizar usuário'})
+        return jsonify({'success': False, 'message': f'Erro ao atualizar usuário: {str(e)}'})
     finally:
         cur.close()
         conn.close()
@@ -2292,4 +2579,225 @@ def agenda():
             except Exception:
                 pass
 
+
     return render_template('agenda.html', data=data_str, entries=entries)
+
+# --- Modelos de Laudo ---
+@app.route('/configuracoes/modelos_laudo')
+@login_required
+@permission_required('acessar_modelos_laudo')
+def modelos_laudo():
+    modelos = ReportTemplate.query.all()
+    return render_template('modelos_laudo.html', modelos=modelos)
+
+@app.route('/configuracoes/modelos_laudo/salvar', methods=['POST'])
+@login_required
+@permission_required('acessar_modelos_laudo')
+def salvar_modelo_laudo():
+    data = request.get_json()
+    pk = data.get('pk')
+    nome = data.get('nome')
+    conteudo = data.get('conteudo')
+    font_family = data.get('font_family', 'Times New Roman')
+    font_size = data.get('font_size', '3')
+    line_spacing = data.get('line_spacing', '1.2')
+    text_align = data.get('text_align', 'left')
+
+    if not nome or not conteudo:
+        return jsonify({'success': False, 'message': 'Nome e conteúdo são obrigatórios'})
+
+    try:
+        if pk:
+            modelo = ReportTemplate.query.get(pk)
+            if not modelo:
+                return jsonify({'success': False, 'message': 'Modelo não encontrado'})
+            modelo.nome = nome
+            modelo.conteudo = conteudo
+            modelo.font_family = font_family
+            modelo.font_size = font_size
+            modelo.line_spacing = line_spacing
+            modelo.text_align = text_align
+        else:
+            modelo = ReportTemplate(nome=nome, conteudo=conteudo, font_family=font_family,
+                                    font_size=font_size, line_spacing=line_spacing, text_align=text_align)
+            db.session.add(modelo)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Modelo salvo com sucesso'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/configuracoes/modelos_laudo/excluir/<int:pk>', methods=['DELETE'])
+@login_required
+@permission_required('acessar_modelos_laudo')
+def excluir_modelo_laudo(pk):
+    try:
+        modelo = ReportTemplate.query.get(pk)
+        if not modelo:
+            return jsonify({'success': False, 'message': 'Modelo não encontrado'})
+        db.session.delete(modelo)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Modelo excluído com sucesso'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/modelos_laudo')
+@login_required
+def api_modelos_laudo():
+    modelos = ReportTemplate.query.all()
+    return jsonify([m.to_dict() for m in modelos])
+
+# --- Layout do Laudo ---
+@app.route('/configuracoes/layout_laudo')
+@login_required
+@permission_required('acessar_layout_laudo')
+def layout_laudo():
+    layouts = ReportLayout.query.all()
+    return render_template('layout_laudo.html', layouts=layouts)
+
+@app.route('/configuracoes/layout_laudo/salvar', methods=['POST'])
+@login_required
+@permission_required('acessar_layout_laudo')
+def salvar_layout_laudo():
+    data = request.get_json()
+    pk = data.get('pk')
+    nome = data.get('nome')
+    cabecalho = data.get('cabecalho')
+    rodape = data.get('rodape')
+    font_family = data.get('font_family')
+    font_size = data.get('font_size')
+    is_default = data.get('is_default', False)
+
+    if not nome:
+        return jsonify({'success': False, 'message': 'Nome é obrigatório'})
+
+    try:
+        # Se for marcar como padrão, remove o padrão dos outros
+        if is_default:
+            ReportLayout.query.update({ReportLayout.is_default: False})
+
+        if pk:
+            layout = ReportLayout.query.get(pk)
+            if not layout:
+                return jsonify({'success': False, 'message': 'Layout não encontrado'})
+            layout.nome = nome
+            layout.cabecalho = cabecalho
+            layout.rodape = rodape
+            layout.font_family = font_family
+            layout.font_size = font_size
+            layout.is_default = is_default
+        else:
+            layout = ReportLayout(
+                nome=nome, 
+                cabecalho=cabecalho, 
+                rodape=rodape, 
+                font_family=font_family,
+                font_size=font_size,
+                is_default=is_default
+            )
+            db.session.add(layout)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Layout salvo com sucesso'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/configuracoes/layout_laudo/excluir/<int:pk>', methods=['DELETE'])
+@login_required
+@permission_required('acessar_layout_laudo')
+def excluir_layout_laudo(pk):
+    try:
+        layout = ReportLayout.query.get(pk)
+        if not layout:
+            return jsonify({'success': False, 'message': 'Layout não encontrado'})
+        db.session.delete(layout)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Layout excluído com sucesso'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/layout_laudo/padrao')
+@login_required
+def api_layout_laudo_padrao():
+    layout = ReportLayout.query.filter_by(is_default=True).first()
+    if not layout:
+        # Tenta pegar o primeiro se não houver padrão
+        layout = ReportLayout.query.first()
+    
+    if layout:
+        return jsonify(layout.to_dict())
+    return jsonify(None)
+@app.route('/configuracoes/auto_texto')
+@login_required
+@permission_required('acessar_auto_texto')
+def configuracoes_auto_texto():
+    auto_textos = AutoTexto.query.filter_by(user_pk=current_user.pk).all()
+    return render_template('autotexto.html', auto_textos=auto_textos)
+
+@app.route('/api/autotexto/salvar', methods=['POST'])
+@login_required
+@permission_required('acessar_auto_texto')
+def salvar_auto_texto():
+    data = request.get_json()
+    pk = data.get('pk')
+    codigo = data.get('codigo')
+    texto = data.get('texto')
+    modalidade = data.get('modalidade')
+
+    if not codigo or not texto or not modalidade:
+        return jsonify({'success': False, 'message': 'Código, texto e modalidade são obrigatórios'})
+
+    try:
+        if pk:
+            auto_texto = AutoTexto.query.get(pk)
+            if not auto_texto or auto_texto.user_pk != current_user.pk:
+                return jsonify({'success': False, 'message': 'Auto texto não encontrado'})
+            auto_texto.codigo = codigo
+            auto_texto.texto = texto
+            auto_texto.modalidade = modalidade
+        else:
+            auto_texto = AutoTexto(
+                codigo=codigo,
+                texto=texto,
+                modalidade=modalidade,
+                user_pk=current_user.pk
+            )
+            db.session.add(auto_texto)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Auto texto salvo com sucesso'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/autotexto/excluir', methods=['POST'])
+@login_required
+@permission_required('acessar_auto_texto')
+def excluir_auto_texto():
+    data = request.get_json()
+    pk = data.get('pk')
+    
+    if not pk:
+        return jsonify({'success': False, 'message': 'ID não informado'})
+
+    try:
+        auto_texto = AutoTexto.query.get(pk)
+        if not auto_texto or auto_texto.user_pk != current_user.pk:
+            return jsonify({'success': False, 'message': 'Auto texto não encontrado'})
+        
+        db.session.delete(auto_texto)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Auto texto excluído com sucesso'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/autotexto/meus')
+@login_required
+def meus_auto_textos():
+    auto_textos = AutoTexto.query.filter_by(user_pk=current_user.pk).all()
+    return jsonify([at.to_dict() for at in auto_textos])

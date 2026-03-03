@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Impressão de Laudo - {{ paciente.nome if paciente else '' }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Times New Roman', Times, serif;
+            background-color: #fff;
+        }
+
+        .print-container {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            position: relative;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #header {
+            width: 100%;
+            padding: 20mm 20mm 5mm 20mm;
+            box-sizing: border-box;
+        }
+
+        #content {
+            flex: 1;
+            padding: 5mm 20mm;
+            box-sizing: border-box;
+            font-size: 14pt;
+            line-height: 1.2;
+        }
+
+        #footer {
+            width: 100%;
+            padding: 5mm 20mm 20mm 20mm;
+            box-sizing: border-box;
+        }
+
+        @media print {
+            body {
+                background: none;
+            }
+
+            .print-container {
+                width: 100%;
+                margin: 0;
+                box-shadow: none;
+            }
+
+            #header,
+            #content,
+            #footer {
+                padding-left: 15mm;
+                padding-right: 15mm;
+            }
+        }
+
+        .no-print-area {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
+
+        @media print {
+            .no-print-area {
+                display: none;
+            }
+        }
+
+        .btn-print {
+            padding: 10px 20px;
+            background: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .demo-badge-print {
+            background-color: #ff0000 !important;
+            color: #fff !important;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            position: absolute;
+            top: 15mm;
+            left: 20mm;
+            z-index: 9999;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="no-print-area">
+        <button class="btn-print" onclick="window.print()">Imprimir</button>
+    </div>
+
+    <div class="print-container">
+        <span class="demo-badge-print">Demo</span>
+        <div id="header"></div>
+        <div id="content">
+            {% if laudo and laudo.conteudo %}
+            {{ laudo.conteudo | safe }}
+            {% else %}
+            <p>Conteúdo do laudo não encontrado.</p>
+            {% endif %}
+        </div>
+        <div id="footer"></div>
+    </div>
+
+    <script>
+        const pacienteData = {{ paciente | tojson | safe if paciente else '{}' }};
+        const medicoData = {
+            'medico_nome': "{{ current_user.name }}",
+            'medico_crm': "{{ current_user.crm or '' }}",
+            'medico_conselho': "{{ current_user.conselho or '' }}",
+            'medico_estado': "{{ current_user.estado or '' }}",
+            'medico_assinatura': "{{ current_user.assinatura_path or '' }}"
+        };
+        const layoutData = {{ layout | tojson | safe if layout else '{}' }};
+
+        function substituirVariaveis(html) {
+            if (!html) return '';
+            let resultado = html;
+
+            // Variáveis do Paciente
+            for (const key in pacienteData) {
+                const valor = pacienteData[key] || '';
+                const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+                resultado = resultado.replace(regex, valor);
+            }
+
+            // Variáveis do Médico
+            for (const key in medicoData) {
+                let valor = medicoData[key] || '';
+
+                if (key === 'medico_assinatura') {
+                    const isAssinado = pacienteData.status === 'A';
+                    if (valor && isAssinado) {
+                        valor = `<img src="/static/${valor}" alt="Assinatura" style="max-width: 200px; max-height: 80px; vertical-align: middle;">`;
+                    } else {
+                        valor = '';
+                    }
+                }
+
+                const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+                resultado = resultado.replace(regex, valor);
+            }
+
+            return resultado;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('header').innerHTML = substituirVariaveis(layoutData.cabecalho || '');
+            document.getElementById('footer').innerHTML = substituirVariaveis(layoutData.rodape || '');
+
+            // Pequeno delay para garantir renderização antes do print
+            setTimeout(() => {
+                window.print();
+                window.onafterprint = function () {
+                    window.close();
+                };
+            }, 500);
+        });
+    </script>
+</body>
+
+</html>

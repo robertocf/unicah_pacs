@@ -15,6 +15,28 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/homepage.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/agenda.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/dark_theme.css') }}">
+    <style>
+        .demo-badge {
+            background-color: #dc3545;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-left: -10px;
+            margin-top: -30px;
+            z-index: 1;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            pointer-events: none;
+        }
+
+        .navbar-brand {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+    </style>
     {% block extra_css %}{% endblock %}
 </head>
 
@@ -26,6 +48,7 @@
                 <a class="navbar-brand" href="/">
                     <img src="{{ url_for('static', filename='logo_unicah.jpeg') }}" alt="Logo"
                         style="height: 60px; width: auto; border-radius: 4px;">
+                    <span class="demo-badge">Demo</span>
                 </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                     aria-controls="navbarNav" aria-expanded="false" aria-label="Alternar navegação">
@@ -100,6 +123,18 @@
                                 {% if permissions.get('acessar_armazenamento') %}
                                 <li><a class="dropdown-item" href="/configuracoes/armazenamento"><i
                                             class="fas fa-hdd me-2"></i>Armazenamento</a></li>
+                                {% endif %}
+                                {% if permissions.get('acessar_modelos_laudo') %}
+                                <li><a class="dropdown-item" href="/configuracoes/modelos_laudo"><i
+                                            class="fas fa-file-alt me-2"></i>Modelos de Laudo</a></li>
+                                {% endif %}
+                                {% if permissions.get('acessar_layout_laudo') %}
+                                <li><a class="dropdown-item" href="/configuracoes/layout_laudo"><i
+                                            class="fas fa-file-code me-2"></i>Layout do Laudo</a></li>
+                                {% endif %}
+                                {% if permissions.get('acessar_auto_texto') or current_user.role == 'admin' %}
+                                <li><a class="dropdown-item" href="/configuracoes/auto_texto"><i
+                                            class="fas fa-keyboard me-2"></i>Auto Texto</a></li>
                                 {% endif %}
                             </ul>
                         </li>

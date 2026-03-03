@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Auto Texto{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Meus Auto Textos</h2>
+        <button class="btn btn-primary" onclick="novoAutoTexto()">
+            <i class="fas fa-plus me-2"></i>Novo Auto Texto
+        </button>
+    </div>
+
+    <!-- Lista de Auto Textos -->
+    <div class="card mt-4 shadow">
+        <div class="card-header bg-custom text-white">
+            <h5 class="mb-0">Códigos Cadastrados</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width: 150px;">Código</th>
+                            <th style="width: 150px;">Modalidade</th>
+                            <th>Texto Expandido</th>
+                            <th style="width: 150px;" class="text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for at in auto_textos %}
+                        <tr data-id="{{ at.pk }}">
+                            <td class="fw-bold text-primary">{{ at.codigo }}</td>
+                            <td><span class="badge bg-secondary">{{ at.modalidade }}</span></td>
+                            <td class="text-truncate" style="max-width: 400px;">{{ at.texto }}</td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-outline-warning me-1"
+                                    onclick='editarAutoTexto({{ at.to_dict()|tojson }})' title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="excluirAutoTexto({{ at.pk }})"
+                                    title="Excluir">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not auto_textos %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">
+                                <i class="fas fa-info-circle me-2"></i>Nenhum auto texto cadastrado.
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info -->
+    <div class="card mt-4 bg-light border-0">
+        <div class="card-body">
+            <h6 class="fw-bold"><i class="fas fa-keyboard me-2"></i>Como usar</h6>
+            <p class="small text-muted mb-0">
+                No editor de laudos, digite o código cadastrado (ex: <code>N1</code>) e pressione a tecla
+                <strong>F3</strong>.
+                O código será substituído automaticamente pelo texto completo.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Cadastro/Edição -->
+<div class="modal fade" id="modalAutoTexto" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="formAutoTexto">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Novo Auto Texto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="at_pk" name="pk">
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="codigo" class="form-label">Código (Ex: N1)</label>
+                            <input type="text" class="form-control" id="codigo" name="codigo" required maxlength="50">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="modalidade" class="form-label">Modalidade</label>
+                            <select class="form-select" id="modalidade" name="modalidade" required>
+                                <option value="RX">RX - Radiografia</option>
+                                <option value="US">US - Ultrassonografia</option>
+                                <option value="RM">RM - Ressonância Magnética</option>
+                                <option value="TC">TC - Tomografia Computadorizada</option>
+                                <option value="ES">ES - Ecografia</option>
+                                <option value="OT">OT - Outros</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="texto" class="form-label">Texto Expandido</label>
+                        <textarea class="form-control" id="texto" name="texto" rows="10" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const modalAutoTexto = new bootstrap.Modal(document.getElementById('modalAutoTexto'));
+
+    function novoAutoTexto() {
+        document.getElementById('modalTitle').innerText = 'Novo Auto Texto';
+        document.getElementById('at_pk').value = '';
+        document.getElementById('formAutoTexto').reset();
+        modalAutoTexto.show();
+    }
+
+    function editarAutoTexto(data) {
+        document.getElementById('modalTitle').innerText = 'Editar Auto Texto';
+        document.getElementById('at_pk').value = data.pk;
+        document.getElementById('codigo').value = data.codigo;
+        document.getElementById('modalidade').value = data.modalidade;
+        document.getElementById('texto').value = data.texto;
+        modalAutoTexto.show();
+    }
+
+    document.getElementById('formAutoTexto').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const data = {
+            pk: document.getElementById('at_pk').value,
+            codigo: document.getElementById('codigo').value,
+            modalidade: document.getElementById('modalidade').value,
+            texto: document.getElementById('texto').value
+        };
+
+        fetch('/api/autotexto/salvar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Erro: ' + data.message);
+                }
+            })
+            .catch(err => alert('Erro de conexão: ' + err));
+    });
+
+    function excluirAutoTexto(pk) {
+        if (!confirm('Tem certeza que deseja excluir este auto texto?')) return;
+
+        fetch('/api/autotexto/excluir', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pk })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Erro: ' + data.message);
+                }
+            })
+            .catch(err => alert('Erro de conexão: ' + err));
+    }
+</script>
+{% endblock %}

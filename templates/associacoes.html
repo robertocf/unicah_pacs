@@ -4,39 +4,15 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2 class="mb-4">Associação de Usuários e Empresas</h2>
-    
-    <!-- Formulário de Associação -->
-    <div class="card">
-        <div class="card-body">
-            <form id="form-associacao">
-                <div class="mb-3">
-                    <label for="usuario" class="form-label">Usuário</label>
-                    <select class="form-select" id="usuario" name="usuario_id" required>
-                        <option value="">Selecione um usuário</option>
-                        {% for usuario in usuarios %}
-                        <option value="{{ usuario.id }}">{{ usuario.nome }} ({{ usuario.user_id }})</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="mb-3">
-                    <label class="form-label">Empresas</label>
-                    <div class="list-group">
-                        {% for empresa in empresas %}
-                        <label class="list-group-item">
-                            <input class="form-check-input me-1" type="checkbox" name="empresas[]" value="{{ empresa.pk }}">
-                            {{ empresa.organization }} ({{ empresa.cnpj }})
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
-                
-                <button type="button" class="btn btn-primary" onclick="salvarAssociacao()">Salvar Associação</button>
-            </form>
-        </div>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Associação de Usuários e Empresas</h2>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAssociacao">
+            <i class="fas fa-plus me-2"></i>Nova Associação
+        </button>
     </div>
-    
+
+    <!-- O formulário de associação foi movido para o modalAssociacao abaixo -->
+
     <!-- Lista de Associações -->
     <div class="card mt-4">
         <div class="card-header">
@@ -63,13 +39,60 @@
                             </ul>
                         </td>
                         <td>
-                            <button class="btn btn-sm btn-warning" onclick="editarAssociacao('{{ associacao.usuario.id }}')"><i class="fas fa-edit"></i></button>
-                            <button class="btn btn-sm btn-danger" onclick="excluirAssociacao('{{ associacao.usuario.id }}')"><i class="fas fa-trash"></i></button>
+                            <button class="btn btn-sm btn-warning"
+                                onclick="editarAssociacao('{{ associacao.usuario.id }}')"><i
+                                    class="fas fa-edit"></i></button>
+                            <button class="btn btn-sm btn-danger"
+                                onclick="excluirAssociacao('{{ associacao.usuario.id }}')"><i
+                                    class="fas fa-trash"></i></button>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+
+<!-- Modal de Associação (Nova) -->
+<div class="modal fade" id="modalAssociacao" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nova Associação</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-associacao">
+                    <div class="mb-3">
+                        <label for="usuario" class="form-label">Usuário</label>
+                        <select class="form-select" id="usuario" name="usuario_id" required>
+                            <option value="">Selecione um usuário</option>
+                            {% for usuario in usuarios %}
+                            <option value="{{ usuario.id }}">{{ usuario.nome }} ({{ usuario.user_id }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Empresas</label>
+                        <div class="list-group">
+                            {% for empresa in empresas %}
+                            <label class="list-group-item">
+                                <input class="form-check-input me-1" type="checkbox" name="empresas[]"
+                                    value="{{ empresa.pk }}">
+                                {{ empresa.organization }} ({{ empresa.cnpj }})
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarAssociacao()">Salvar Associação</button>
+            </div>
         </div>
     </div>
 </div>
@@ -90,7 +113,8 @@
                         <div class="list-group" id="edit_empresas">
                             {% for empresa in empresas %}
                             <label class="list-group-item">
-                                <input class="form-check-input me-1" type="checkbox" name="empresas[]" value="{{ empresa.pk }}">
+                                <input class="form-check-input me-1" type="checkbox" name="empresas[]"
+                                    value="{{ empresa.pk }}">
                                 {{ empresa.organization }} ({{ empresa.cnpj }})
                             </label>
                             {% endfor %}
@@ -128,102 +152,150 @@
 
 {% block extra_js %}
 <script>
-function salvarAssociacao() {
-    const formData = new FormData(document.getElementById('form-associacao'));
-    const usuarioId = formData.get('usuario_id');
-    
-    fetch(`/configuracoes/associacoes/editar/${usuarioId}`, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => {
-        // Verifica se a resposta é um redirecionamento (HTML) em vez de JSON
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('text/html')) {
-            // Se retornou HTML, significa que foi redirecionado (usuário sem permissão)
-            alert('Acesso negado. Apenas administradores podem realizar esta ação.');
+    // Função para mostrar alertas
+    function mostrarAlerta(mensagem, tipo) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${tipo} alert-dismissible fade show`;
+        alertDiv.role = 'alert';
+        alertDiv.innerHTML = `
+        ${mensagem}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+        const container = document.querySelector('.container');
+        container.insertBefore(alertDiv, container.querySelector('.card'));
+
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 4000);
+    }
+
+    function salvarAssociacao() {
+        const formData = new FormData(document.getElementById('form-associacao'));
+        const usuarioId = formData.get('usuario_id');
+
+        if (!usuarioId) {
+            mostrarAlerta('Selecione um usuário para associar.', 'warning');
             return;
         }
-        return response.json();
-    })
-    .then(data => {
-        if (data && data.success) {
-            window.location.reload();
-        } else if (data) {
-            alert('Erro ao salvar as associações: ' + data.message);
-        }
-    });
-}
 
-
-function editarAssociacao(usuarioId) {
-    fetch(`/configuracoes/associacoes/buscar/${usuarioId}`)
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('edit_usuario_id').value = usuarioId;
-            const checkboxes = document.querySelectorAll('#edit_empresas input[type="checkbox"]');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = data.empresas.includes(parseInt(checkbox.value));
+        fetch(`/configuracoes/associacoes/editar/${usuarioId}`, {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => {
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('text/html')) {
+                    mostrarAlerta('Acesso negado. Apenas administradores podem realizar esta ação.', 'danger');
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.success) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalAssociacao'));
+                    if (modal) modal.hide();
+                    mostrarAlerta('Associação salva com sucesso!', 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else if (data) {
+                    mostrarAlerta('Erro ao salvar as associações: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro ao salvar as associações.', 'danger');
             });
-            const modal = new bootstrap.Modal(document.getElementById('modalEdicao'));
-            modal.show();
-        });
-}
+    }
 
-function salvarEdicao() {
-    const formData = new FormData(document.getElementById('formEdicao'));
-    const usuarioId = formData.get('usuario_id');
-    
-    fetch(`/configuracoes/associacoes/editar/${usuarioId}`, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => {
-        // Verifica se a resposta é um redirecionamento (HTML) em vez de JSON
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('text/html')) {
-            // Se retornou HTML, significa que foi redirecionado (usuário sem permissão)
-            alert('Acesso negado. Apenas administradores podem realizar esta ação.');
-            return;
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data && data.success) {
-            window.location.reload();
-        } else if (data) {
-            alert('Erro ao salvar as alterações: ' + data.message);
-        }
-    });
-}
 
-function excluirAssociacao(usuarioId) {
-    const modal = new bootstrap.Modal(document.getElementById('modalExclusao'));
-    const btnConfirmar = document.getElementById('btnConfirmarExclusao');
-    
-    btnConfirmar.onclick = function() {
-        fetch(`/configuracoes/associacoes/excluir/${usuarioId}`, {
-            method: 'DELETE'
+    function editarAssociacao(usuarioId) {
+        fetch(`/configuracoes/associacoes/buscar/${usuarioId}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('edit_usuario_id').value = usuarioId;
+                const checkboxes = document.querySelectorAll('#edit_empresas input[type="checkbox"]');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = data.empresas.includes(parseInt(checkbox.value));
+                });
+                const modal = new bootstrap.Modal(document.getElementById('modalEdicao'));
+                modal.show();
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro ao buscar dados da associação.', 'danger');
+            });
+    }
+
+    function salvarEdicao() {
+        const formData = new FormData(document.getElementById('formEdicao'));
+        const usuarioId = formData.get('usuario_id');
+
+        fetch(`/configuracoes/associacoes/editar/${usuarioId}`, {
+            method: 'POST',
+            body: formData
         })
-        .then(response => {
-            // Verifica se a resposta é um redirecionamento (HTML) em vez de JSON
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('text/html')) {
-                // Se retornou HTML, significa que foi redirecionado (usuário sem permissão)
-                alert('Acesso negado. Apenas administradores podem realizar esta ação.');
-                return;
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data && data.success) {
-                window.location.reload();
-            }
-        });
-        modal.hide();
-    };
-    
-    modal.show();
-}
+            .then(response => {
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('text/html')) {
+                    mostrarAlerta('Acesso negado. Apenas administradores podem realizar esta ação.', 'danger');
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.success) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalEdicao'));
+                    if (modal) modal.hide();
+                    mostrarAlerta('Alterações salvas com sucesso!', 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else if (data) {
+                    mostrarAlerta('Erro ao salvar as alterações: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro ao salvar as alterações.', 'danger');
+            });
+    }
+
+    function excluirAssociacao(usuarioId) {
+        const modal = new bootstrap.Modal(document.getElementById('modalExclusao'));
+        const btnConfirmar = document.getElementById('btnConfirmarExclusao');
+
+        btnConfirmar.onclick = function () {
+            fetch(`/configuracoes/associacoes/excluir/${usuarioId}`, {
+                method: 'DELETE'
+            })
+                .then(response => {
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('text/html')) {
+                        mostrarAlerta('Acesso negado. Apenas administradores podem realizar esta ação.', 'danger');
+                        return;
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && data.success) {
+                        const modalExclusao = bootstrap.Modal.getInstance(document.getElementById('modalExclusao'));
+                        if (modalExclusao) modalExclusao.hide();
+                        mostrarAlerta('Associação removida com sucesso!', 'success');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    } else if (data) {
+                        mostrarAlerta('Erro ao remover as associações: ' + data.message, 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    mostrarAlerta('Erro ao remover as associações.', 'danger');
+                });
+        };
+
+        modal.show();
+    }
 </script>
 {% endblock %}

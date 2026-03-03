@@ -4,68 +4,14 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2 class="mb-4">Cadastro de Empresas</h2>
-
-    <!-- Formulário de Cadastro -->
-    <div class="card">
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('cadastrar_empresa') }}" enctype="multipart/form-data">
-                <div class="mb-3">
-                    <label for="organization" class="form-label">Nome da Empresa</label>
-                    <input type="text" class="form-control" id="organization" name="organization" required>
-                </div>
-
-                <div class="mb-3">
-                    <label for="logo" class="form-label">Logo da Empresa (402x127 pixels)</label>
-                    <input type="file" class="form-control" id="logo" name="logo" accept="image/*">
-                    <small class="form-text text-muted">A imagem deve ter exatamente 402x127 pixels.</small>
-                    <img id="logo_preview"
-                        style="max-width: 402px; max-height: 127px; margin-top: 10px; display: none;">
-                </div>
-                <div class="mb-3">
-                    <label for="presentation" class="form-label">Apresentação</label>
-                    <textarea class="form-control" id="presentation" name="presentation" rows="3"></textarea>
-                </div>
-
-                <div class="mb-3">
-                    <label for="email" class="form-label">Email</label>
-                    <input type="email" class="form-control" id="email" name="email">
-                </div>
-
-                <div class="mb-3">
-                    <label for="phone" class="form-label">Telefone</label>
-                    <input type="text" class="form-control" id="phone" name="phone">
-                </div>
-
-                <div class="mb-3">
-                    <label for="cnpj" class="form-label">CNPJ</label>
-                    <input type="text" class="form-control" id="cnpj" name="cnpj" required>
-                </div>
-
-                <div class="mb-3">
-                    <label for="address" class="form-label">Endereço</label>
-                    <input type="text" class="form-control" id="address" name="address">
-                </div>
-
-                <div class="mb-3">
-                    <label for="start_contract" class="form-label">Início do Contrato</label>
-                    <input type="date" class="form-control" id="start_contract" name="start_contract">
-                </div>
-
-                <div class="mb-3">
-                    <label for="expiration" class="form-label">Vencimento do Contrato</label>
-                    <input type="date" class="form-control" id="expiration" name="expiration">
-                </div>
-
-                <div class="mb-3 form-check">
-                    <input type="checkbox" class="form-check-input" id="active" name="active" checked>
-                    <label class="form-check-label" for="active">Ativo</label>
-                </div>
-
-                <button type="submit" class="btn btn-primary">Cadastrar</button>
-            </form>
-        </div>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Cadastro de Empresas</h2>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCadastro">
+            <i class="fas fa-plus me-2"></i>Cadastrar Empresa
+        </button>
     </div>
+
+    <!-- O formulário de cadastro foi movido para o modalCadastro abaixo -->
 
     <!-- Lista de Empresas -->
     <div class="card mt-4">
@@ -106,6 +52,79 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+
+<!-- Modal de Cadastro -->
+<div class="modal fade" id="modalCadastro" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cadastrar Empresa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('cadastrar_empresa') }}" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="organization" class="form-label">Nome da Empresa</label>
+                        <input type="text" class="form-control" id="organization" name="organization" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="logo" class="form-label">Logo da Empresa (402x127 pixels)</label>
+                        <input type="file" class="form-control" id="logo" name="logo" accept="image/*">
+                        <small class="form-text text-muted">A imagem deve ter exatamente 402x127 pixels.</small>
+                        <img id="logo_preview"
+                            style="max-width: 402px; max-height: 127px; margin-top: 10px; display: none;">
+                    </div>
+                    <div class="mb-3">
+                        <label for="presentation" class="form-label">Apresentação</label>
+                        <textarea class="form-control" id="presentation" name="presentation" rows="3"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Telefone</label>
+                        <input type="text" class="form-control" id="phone" name="phone">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="cnpj" class="form-label">CNPJ</label>
+                        <input type="text" class="form-control" id="cnpj" name="cnpj" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Endereço</label>
+                        <input type="text" class="form-control" id="address" name="address">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="start_contract" class="form-label">Início do Contrato</label>
+                        <input type="date" class="form-control" id="start_contract" name="start_contract">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="expiration" class="form-label">Vencimento do Contrato</label>
+                        <input type="date" class="form-control" id="expiration" name="expiration">
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="active" name="active" checked>
+                        <label class="form-check-label" for="active">Ativo</label>
+                    </div>
+
+                    <div class="modal-footer px-0 pb-0">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Cadastrar</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -290,7 +309,7 @@
                 } else {
                     document.getElementById('edit_start_contract').value = '';
                 }
-                
+
                 // Converte a data do formato dd-mm-yyyy para yyyy-mm-dd para expiration
                 if (data.expiration && data.expiration !== 'None' && data.expiration !== '') {
                     const parts = data.expiration.split('-');

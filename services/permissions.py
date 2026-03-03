@@ -45,6 +45,17 @@ def get_user_permissions(user):
             'associar': True,
             'acessar_armazenamento': True,
             'acessar_permissoes': True,
+            'abrir_weasis_local': True,
+            'abrir_weasis_servidor': True,
+            'abrir_no_navegador': True,
+            'baixar_imagens': True,
+            'laudo': True,
+            'imprimir_laudo': True,
+            'acessar_modelos_laudo': True,
+            'acessar_layout_laudo': True,
+            'acessar_auto_texto': True,
+            'ver_todos_estudos': True,
+            'resetar_laudo': True,
         }
     
     # Padrão para outros (Médico, Técnico, etc) enquanto não configurado via UI
@@ -62,6 +73,15 @@ def get_user_permissions(user):
         'associar': False,
         'acessar_armazenamento': False,
         'acessar_permissoes': False,
+        'abrir_weasis_local': True,
+        'abrir_weasis_servidor': True,
+        'abrir_no_navegador': True,
+        'baixar_imagens': True,
+        'laudo': False,
+        'imprimir_laudo': True,
+        'acessar_menu_configuracoes': True,
+        'acessar_auto_texto': True,
+        'ver_todos_estudos': False,
     }
 
 
@@ -72,7 +92,11 @@ def list_permission_definitions():
         {'key': 'editar_estudos', 'label': 'Editar estudos'},
         {'key': 'acessar_menu_configuracoes', 'label': 'Acessar menu configurações'},
         {'key': 'excluir_estudos', 'label': 'Excluir estudos'},
-        {'key': 'imprimir_estudos', 'label': 'Imprimir estudos'},
+        {'key': 'imprimir_estudos', 'label': 'Imprimir imagens'},
+        {'key': 'abrir_weasis_local', 'label': 'Abrir no Weasis (local)'},
+        {'key': 'abrir_weasis_servidor', 'label': 'Abrir no Weasis (servidor)'},
+        {'key': 'abrir_no_navegador', 'label': 'Abrir no navegador'},
+        {'key': 'baixar_imagens', 'label': 'Baixar imagens'},
         {'key': 'visualizar_relatorios', 'label': 'Relatórios'},
         {'key': 'acessar_gerencial', 'label': 'Gerencial'},
         {'key': 'criar_usuarios', 'label': 'Criar usuários'},
@@ -80,4 +104,11 @@ def list_permission_definitions():
         {'key': 'associar', 'label': 'Associar'},
         {'key': 'acessar_armazenamento', 'label': 'Armazenamento'},
         {'key': 'acessar_permissoes', 'label': 'Acessar permissões'},
+        {'key': 'laudo', 'label': 'Laudo'},
+        {'key': 'imprimir_laudo', 'label': 'Imprimir laudo'},
+        {'key': 'acessar_modelos_laudo', 'label': 'Modelos de laudo'},
+        {'key': 'acessar_layout_laudo', 'label': 'Layout do laudo'},
+        {'key': 'acessar_auto_texto', 'label': 'Auto texto'},
+        {'key': 'ver_todos_estudos', 'label': 'Ver todos os estudos'},
+        {'key': 'resetar_laudo', 'label': 'Resetar laudo'},
     ]

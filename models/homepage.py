@@ -3,7 +3,9 @@ from datetime import datetime
 from config import SERVER_IP  # ajuste se o import do config for diferente
 from db import get_db_connection  # ajuste se o import da conexão for diferente
 
-def carregar_homepage(user_name, user_id, user_role=None, alert=None):  
+def carregar_homepage(user_name, user_id, user_role=None, alert=None, permissions=None):  
+    if permissions is None:
+        permissions = {}
     if request.method == "POST":
         id_paciente = request.form.get("id_paciente", "")
         nome = request.form.get("nome", "")
@@ -94,8 +96,8 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
                     END as pat_birthdate,
                    CASE 
                     WHEN LENGTH(p.pat_birthdate) = 8 AND p.pat_birthdate ~ '^[0-9]{8}$'
-                    THEN EXTRACT(YEAR FROM AGE(TO_DATE(pat_birthdate, 'YYYYMMDD'))) || ' anos e ' ||
-                         EXTRACT(MONTH FROM AGE(TO_DATE(pat_birthdate, 'YYYYMMDD'))) || ' meses'
+                    THEN EXTRACT(YEAR FROM AGE(TO_DATE(pat_birthdate, 'YYYYMMDD'))) || ' a e ' ||
+                         EXTRACT(MONTH FROM AGE(TO_DATE(pat_birthdate, 'YYYYMMDD'))) || ' m'
                     ELSE '' 
                    END AS idade,
                    CASE WHEN p.pat_sex IS NULL THEN '' ELSE p.pat_sex END AS pat_sex,
@@ -104,7 +106,7 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
                     WHEN s.study_desc IS NULL THEN '' else s.study_desc end as study_desc,
                    s.pk,
                    to_char(s.study_datetime, 'DD/MM/YYYY HH24:MI:SS') as study_datetime,
-                   CASE s.study_custom1 WHEN 'I' THEN 'Impresso' WHEN 'V' THEN 'Visual' WHEN 'R' THEN 'Rascu' ELSE 'Pronto' END AS custom,
+                   CASE s.study_custom1 WHEN 'I' THEN 'Impresso' WHEN 'V' THEN 'Visual' WHEN 'R' THEN 'Rascu' WHEN 'A' THEN 'Assinado' ELSE 'Pronto' END AS custom,
                    s.num_instances,
                    s.pk,
                    CASE WHEN sr.institution IS NULL THEN '' else sr.institution END AS institution, 
@@ -112,10 +114,12 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
                    CASE WHEN s.ref_physician IS NULL THEN '' else s.ref_physician END AS ref_physician,
                    CASE WHEN s.study_id IS NULL THEN '' else s.study_id END AS study_id,
                    s.study_iuid,
-                   CASE WHEN s.accession_no IS NULL THEN '' else s.accession_no END AS accession_no
+                   CASE WHEN s.accession_no IS NULL THEN '' else s.accession_no END AS accession_no,
+                   u.name AS doctor_assigned
             FROM patient p
             JOIN study s ON s.patient_fk = p.pk
             JOIN series sr ON sr.study_fk = s.pk
+            LEFT JOIN users_app u ON s.doctor_id = u.pk
             WHERE sr.modality != 'SR'
         """
     else:
@@ -140,7 +144,7 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
                     WHEN s.study_desc IS NULL THEN '' else s.study_desc end as study_desc,
                    s.pk,
                    to_char(s.study_datetime, 'DD/MM/YYYY HH24:MI:SS') as study_datetime,
-                   CASE s.study_custom1 WHEN 'I' THEN 'Impresso' WHEN 'V' THEN 'Visual' WHEN 'R' THEN 'Rascu' ELSE 'Pronto' END AS custom,
+                   CASE s.study_custom1 WHEN 'I' THEN 'Impresso' WHEN 'V' THEN 'Visual' WHEN 'R' THEN 'Rascu' WHEN 'A' THEN 'Assinado' ELSE 'Pronto' END AS custom,
                    s.num_instances,
                    s.pk,
                    CASE WHEN sr.institution IS NULL THEN '' else sr.institution END AS institution, 
@@ -148,10 +152,12 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
                    CASE WHEN s.ref_physician IS NULL THEN '' else s.ref_physician END AS ref_physician,
                    CASE WHEN s.study_id IS NULL THEN '' else s.study_id END AS study_id,
                    s.study_iuid,
-                   CASE WHEN s.accession_no IS NULL THEN '' else s.accession_no END AS accession_no
+                   CASE WHEN s.accession_no IS NULL THEN '' else s.accession_no END AS accession_no,
+                   u.name AS doctor_assigned
             FROM patient p
             JOIN study s ON s.patient_fk = p.pk
             JOIN series sr ON sr.study_fk = s.pk
+            LEFT JOIN users_app u ON s.doctor_id = u.pk
             WHERE sr.modality != 'SR'
             AND sr.institution IN (
                 SELECT oa.presentation 
@@ -175,12 +181,18 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
             s.study_id,
             s.study_iuid,
             s.num_instances,
-            s.accession_no
+            s.accession_no,
+            u.name
     """
 
     # Condições dinâmicas
     params = [user_id] if user_role != 'admin' else []
     conditions = []
+
+    # Se não tiver permissão para ver todos, filtra pelo ID do médico
+    if not permissions.get('ver_todos_estudos') and user_role != 'admin':
+        conditions.append("s.doctor_id = %s")
+        params.append(user_id)
 
     if id_paciente and id_paciente.isdigit():
         conditions.append("p.pat_id = %s")
@@ -225,8 +237,10 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None):
             conditions.append("s.study_custom1 = 'V'")
         elif status == 'Rascu':
             conditions.append("s.study_custom1 = 'R'")
+        elif status == 'Assinado':
+            conditions.append("s.study_custom1 = 'A'")
         elif status == 'Pronto':
-             conditions.append("(s.study_custom1 IS NULL OR s.study_custom1 NOT IN ('I', 'V', 'R'))")
+             conditions.append("(s.study_custom1 IS NULL OR s.study_custom1 NOT IN ('I', 'V', 'R', 'A'))")
 
     if qtd_valor and qtd_valor.isdigit() and qtd_operador in ['>', '<', '=', '>=', '<=']:
          conditions.append(f"s.num_instances {qtd_operador} %s")

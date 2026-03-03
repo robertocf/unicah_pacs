@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+
+{% block title %}Layout do Laudo{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Layout do Laudo</h2>
+        <button class="btn btn-primary" onclick="novoLayout()">
+            <i class="fas fa-plus me-2"></i>Novo Layout
+        </button>
+    </div>
+
+    <!-- Lista de Layouts -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Layouts Cadastrados</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;">ID</th>
+                            <th style="width: 90px;">Nome do Layout</th>
+                            <th style="width: 70px;">Padrão</th>
+                            <th style="width: 150px;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for layout in layouts %}
+                        <tr data-id="{{ layout.pk }}">
+                            <td>{{ layout.pk }}</td>
+                            <td>{{ layout.nome }}</td>
+                            <td>
+                                {% if layout.is_default %}
+                                <span class="badge bg-success">Sim</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Não</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-warning me-1 btn-editar-layout"
+                                    data-pk="{{ layout.pk }}" data-nome="{{ layout.nome }}"
+                                    data-default="{{ 'true' if layout.is_default else 'false' }}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="excluirLayout({{ layout.pk }})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                <div class="d-none" id="cabecalho-{{ layout.pk }}">{{ layout.cabecalho|safe }}</div>
+                                <div class="d-none" id="rodape-{{ layout.pk }}">{{ layout.rodape|safe }}</div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not layouts %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">Nenhum layout cadastrado.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Variáveis Disponíveis -->
+    <div class="card mt-4">
+        <div class="card-header bg-light">
+            <h6 class="mb-0 fw-bold"><i class="fas fa-info-circle me-2"></i>Variáveis Disponíveis para o Layout</h6>
+        </div>
+        <div class="card-body">
+            <p class="small text-muted mb-2">Use estas tags no cabeçalho ou rodapé para inserir dados automáticos:</p>
+            <div class="row g-2">
+                <div class="col-md-3"><code class="fs-6">{% raw %}{{nome}}{% endraw %}</code> - Nome do Paciente</div>
+                <div class="col-md-3"><code class="fs-6">{% raw %}{{pat_id}}{% endraw %}</code> - ID do Paciente</div>
+                <div class="col-md-3"><code class="fs-6">{% raw %}{{idade}}{% endraw %}</code> - Idade</div>
+                <div class="col-md-3"><code class="fs-6">{% raw %}{{sexo}}{% endraw %}</code> - Sexo</div>
+                <div class="col-md-3"><code class="fs-6">{% raw %}{{procedimento}}{% endraw %}</code> - Procedimento
+                </div>
+                <div class="col-md-3"><code class="fs-6">{% raw %}{{data_estudo}}{% endraw %}</code> - Data do Estudo
+                </div>
+                <div class="col-md-3"><code class="fs-6">{% raw %}{{medico}}{% endraw %}</code> - Médico Solicitante
+                </div>
+                <div class="col-md-3"><code class="fs-6">{% raw %}{{accession}}{% endraw %}</code> - Accession Number
+                </div>
+                <div class="col-md-3"><code class="fs-6">{% raw %}{{medico_nome}}{% endraw %}</code> - Nome do Médico
+                    (Logado)</div>
+                <div class="col-md-3"><code class="fs-6">{% raw %}{{medico_crm}}{% endraw %}</code> - CRM do Médico
+                </div>
+                <div class="col-md-3"><code class="fs-6">{% raw %}{{medico_conselho}}{% endraw %}</code> - Conselho (Ex:
+                    CRM)</div>
+                <div class="col-md-3"><code class="fs-6">{% raw %}{{medico_estado}}{% endraw %}</code> - UF do CRM</div>
+                <div class="col-md-3"><code class="fs-6">{% raw %}{{medico_assinatura}}{% endraw %}</code> - Imagem da
+                    Assinatura</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Cadastro/Edição -->
+<div class="modal fade" id="modalLayout" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Novo Layout</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formLayout">
+                    <input type="hidden" id="layout_pk" name="pk">
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="nome" class="form-label">Nome do Layout</label>
+                            <input type="text" class="form-control" id="nome" name="nome" required
+                                placeholder="Ex: Layout Hospital Regional">
+                        </div>
+                        <div class="col-md-4 mb-3 d-flex align-items-end pb-2">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_default" name="is_default">
+                                <label class="form-check-label" for="is_default">Definir como Padrão</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <ul class="nav nav-tabs mb-3" id="layoutTabs" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active" id="cabecalho-tab" data-bs-toggle="tab"
+                                data-bs-target="#cabecalho-pane" type="button">Cabeçalho (HTML)</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" id="rodape-tab" data-bs-toggle="tab" data-bs-target="#rodape-pane"
+                                type="button">Rodapé (HTML)</button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="layoutTabsContent">
+                        <!-- Toolbar for formatting -->
+                        <div class="bg-light p-2 mb-2 border rounded d-flex gap-1 align-items-center flex-wrap">
+                            <select id="fontFamily" class="form-select form-select-sm w-auto"
+                                onchange="formatDoc('fontName', this.value)">
+                                <option value="Arial">Arial</option>
+                                <option value="Times New Roman" selected>Times New Roman</option>
+                                <option value="Calibri">Calibri</option>
+                                <option value="Verdana">Verdana</option>
+                            </select>
+                            <select id="fontSize" class="form-select form-select-sm w-auto"
+                                onchange="formatDoc('fontSize', this.value)">
+                                <option value="1">10 pt</option>
+                                <option value="2">12 pt</option>
+                                <option value="3" selected>14 pt</option>
+                                <option value="4">18 pt</option>
+                                <option value="5">24 pt</option>
+                            </select>
+                            <div class="vr mx-1"></div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatDoc('bold')"
+                                title="Negrito"><i class="fas fa-bold"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatDoc('italic')"
+                                title="Itálico"><i class="fas fa-italic"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                onclick="formatDoc('underline')" title="Sublinhado"><i
+                                    class="fas fa-underline"></i></button>
+                            <div class="vr mx-1"></div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                onclick="formatDoc('justifyLeft')" title="Alinhar Esquerda"><i
+                                    class="fas fa-align-left"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                onclick="formatDoc('justifyCenter')" title="Centralizar"><i
+                                    class="fas fa-align-center"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                onclick="formatDoc('justifyRight')" title="Alinhar Direita"><i
+                                    class="fas fa-align-right"></i></button>
+                            <div class="vr mx-1"></div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                onclick="formatDoc('removeFormat')" title="Limpar"><i
+                                    class="fas fa-eraser"></i></button>
+                        </div>
+
+                        <div class="tab-pane fade show active" id="cabecalho-pane">
+                            <div class="form-control" id="cabecalho_editor" contenteditable="true"
+                                style="min-height: 300px; background: white; font-family: 'Times New Roman', Times, serif; font-size: 14pt;">
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="rodape-pane">
+                            <div class="form-control" id="rodape_editor" contenteditable="true"
+                                style="min-height: 300px; background: white; font-family: 'Times New Roman', Times, serif; font-size: 14pt;">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarLayout()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmação de Exclusão -->
+<div class="modal fade" id="modalExclusao" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Exclusão</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Deseja realmente excluir este layout?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="btnConfirmarExclusao">Excluir</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const modalLayout = new bootstrap.Modal(document.getElementById('modalLayout'));
+    const modalExclusao = new bootstrap.Modal(document.getElementById('modalExclusao'));
+
+    function novoLayout() {
+        document.getElementById('modalTitle').innerText = 'Novo Layout';
+        document.getElementById('formLayout').reset();
+        document.getElementById('layout_pk').value = '';
+        document.getElementById('cabecalho_editor').innerHTML = '';
+        document.getElementById('rodape_editor').innerHTML = '';
+        modalLayout.show();
+    }
+
+    function formatDoc(cmd, val) {
+        if (cmd === 'fontName') {
+            document.getElementById('cabecalho_editor').style.fontFamily = val + ', Times, serif';
+            document.getElementById('rodape_editor').style.fontFamily = val + ', Times, serif';
+        } else if (cmd === 'fontSize') {
+            const sizes = { '1': '10pt', '2': '12pt', '3': '14pt', '4': '18pt', '5': '24pt' };
+            const sizeStr = sizes[val] || '14pt';
+            document.getElementById('cabecalho_editor').style.fontSize = sizeStr;
+            document.getElementById('rodape_editor').style.fontSize = sizeStr;
+        }
+
+        document.execCommand(cmd, false, val);
+        const activePane = document.querySelector('.tab-pane.show.active .form-control');
+        if (activePane) activePane.focus();
+    }
+
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('.btn-editar-layout')) {
+            const btn = e.target.closest('.btn-editar-layout');
+            const pk = btn.getAttribute('data-pk');
+            const nome = btn.getAttribute('data-nome');
+            const is_default = btn.getAttribute('data-default') === 'true';
+
+            editarLayout(pk, nome, is_default);
+        }
+    });
+
+    function editarLayout(pk, nome, is_default) {
+        document.getElementById('modalTitle').innerText = 'Editar Layout';
+        document.getElementById('layout_pk').value = pk;
+        document.getElementById('nome').value = nome;
+        document.getElementById('is_default').checked = is_default;
+
+        let cabecalhoHtml = document.getElementById(`cabecalho-${pk}`).innerHTML;
+        let rodapeHtml = document.getElementById(`rodape-${pk}`).innerHTML;
+
+        // Try to extract font/size from wrapper if it exists (saved by our new logic)
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = cabecalhoHtml;
+        const wrapper = tempDiv.firstElementChild;
+
+        if (wrapper && wrapper.tagName === 'DIV' && wrapper.style.fontFamily) {
+            const font = wrapper.style.fontFamily.split(',')[0].replace(/['"]/g, '').trim();
+            document.getElementById('fontFamily').value = font;
+
+            const sizeMap = { '10pt': '1', '12pt': '2', '14pt': '3', '18pt': '4', '24pt': '5' };
+            const size = sizeMap[wrapper.style.fontSize] || '3';
+            document.getElementById('fontSize').value = size;
+
+            // Unpack inner content to avoid nesting
+            cabecalhoHtml = wrapper.innerHTML;
+
+            const tempDiv2 = document.createElement('div');
+            tempDiv2.innerHTML = rodapeHtml;
+            const wrapper2 = tempDiv2.firstElementChild;
+            if (wrapper2 && wrapper2.tagName === 'DIV' && wrapper2.style.fontFamily) rodapeHtml = wrapper2.innerHTML;
+        }
+
+        document.getElementById('cabecalho_editor').innerHTML = cabecalhoHtml;
+        document.getElementById('rodape_editor').innerHTML = rodapeHtml;
+        modalLayout.show();
+    }
+
+    function salvarLayout() {
+        const pk = document.getElementById('layout_pk').value;
+        const nome = document.getElementById('nome').value;
+        const fontFamily = document.getElementById('fontFamily').value;
+        const fontSize = document.getElementById('fontSize').value;
+
+        // Helper to convert select value to pt/px
+        const sizes = { '1': '10pt', '2': '12pt', '3': '14pt', '4': '18pt', '5': '24pt' };
+        const sizeStr = sizes[fontSize] || '14pt';
+
+        // Wrap content to preserve base settings
+        const cabecalho = `<div style="font-family: ${fontFamily}, Times, serif; font-size: ${sizeStr};">${document.getElementById('cabecalho_editor').innerHTML}</div>`;
+        const rodape = `<div style="font-family: ${fontFamily}, Times, serif; font-size: ${sizeStr};">${document.getElementById('rodape_editor').innerHTML}</div>`;
+
+        const is_default = document.getElementById('is_default').checked;
+
+        if (!nome) {
+            alert('Por favor, preencha o nome do layout.');
+            return;
+        }
+
+        fetch('/configuracoes/layout_laudo/salvar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ pk, nome, cabecalho, rodape, is_default })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Erro ao salvar: ' + data.message);
+                }
+            });
+    }
+
+    function excluirLayout(pk) {
+        const btnConfirmar = document.getElementById('btnConfirmarExclusao');
+        btnConfirmar.onclick = function () {
+            fetch(`/configuracoes/layout_laudo/excluir/${pk}`, {
+                method: 'DELETE'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Erro ao excluir: ' + data.message);
+                    }
+                });
+            modalExclusao.hide();
+        };
+        modalExclusao.show();
+    }
+</script>
+{% endblock %}
