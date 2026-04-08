@@ -109,16 +109,8 @@
                             </div>
                             <div class="col-md-2">
                                 <label for="data_atendimento" class="form-label">Data de Atendimento</label>
-                                <select class="form-select" id="data_atendimento" name="data_atendimento">
-                                    <option value="all" {% if data_atendimento=='all' %}selected{% endif %}>Todas
-                                    </option>
-                                    <option value="today" {% if data_atendimento=='today' %}selected{% endif %}>Hoje
-                                    </option>
-                                    <option value="last3days" {% if data_atendimento=='last3days' %}selected{% endif %}>
-                                        Últimos 3 dias</option>
-                                    <option value="last30days" {% if data_atendimento=='last30days' %}selected{% endif
-                                        %}>Últimos 30 dias</option>
-                                </select>
+                                <input type="date" class="form-control" id="data_atendimento" name="data_atendimento" 
+                                    value="{{ data_atendimento if data_atendimento and data_atendimento not in ['all', 'today', 'last3days', 'last30days'] else '' }}">
                             </div>
                             <div class="col-md-1">
                                 <label for="modalidade" class="form-label">Modalidade</label>
@@ -397,19 +389,12 @@
                                             </div>
                                             <div class="dropdown-menu p-3" style="min-width: 200px;">
                                                 <label class="form-label mb-1">Filtrar Data</label>
-                                                <select class="form-select mb-2" id="filter_data_atendimento">
-                                                    <option value="all" {% if data_atendimento=='all' %}selected{% endif
-                                                        %}>Todas</option>
-                                                    <option value="today" {% if data_atendimento=='today' %}selected{%
-                                                        endif %}>Hoje</option>
-                                                    <option value="last3days" {% if data_atendimento=='last3days'
-                                                        %}selected{% endif %}>3 Dias</option>
-                                                    <option value="last30days" {% if data_atendimento=='last30days'
-                                                        %}selected{% endif %}>30 Dias</option>
-                                                </select>
+                                                <input type="date" class="form-control mb-2" id="filter_data_atendimento" 
+                                                    value="{{ data_atendimento if data_atendimento and data_atendimento not in ['all', 'today', 'last3days', 'last30days'] else '' }}"
+                                                    onkeydown="checkEnter(event)">
                                                 <div class="d-flex justify-content-between">
                                                     <button class="btn btn-sm btn-outline-secondary"
-                                                        onclick="document.getElementById('filter_data_atendimento').value='all'; applyFilters()">Limpar</button>
+                                                        onclick="document.getElementById('filter_data_atendimento').value=''; applyFilters()">Limpar</button>
                                                     <button class="btn btn-sm btn-primary"
                                                         onclick="applyFilters()">Aplicar</button>
                                                 </div>
@@ -514,22 +499,14 @@
                                 {% for patient in patients %}
                                 <tr data-study-pk="{{ patient[7] }}">
                                     <td class="expand-trigger" data-bs-toggle="collapse"
-                                        data-bs-target="#expand-{{ patient[0] }}">
+                                        data-bs-target="#expand-{{ patient[7] }}">
                                         <i class="fas fa-plus-circle text-success"></i>
                                     </td>
                                     <td>{{ patient[0] }}</td>
                                     <td>{{ patient[1] }}</td>
                                     <td>{{ patient[2] }}</td>
                                     <td>{{ patient[3] }}</td>
-                                    <td>
-                                        {% if patient[4] == 'M' %}
-                                        <span class="gender-circle-m">M</span>
-                                        {% elif patient[4] == 'F' %}
-                                        <span class="gender-circle-f">F</span>
-                                        {% else %}
-                                        {{ patient[4] }}
-                                        {% endif %}
-                                    </td>
+                                    <td>{{ patient[4] }}</td>
                                     <td>{{ patient[5] }}</td>
                                     <td>{{ patient[6] }}</td>
                                     <td>{{ patient[15] }}</td>
@@ -554,13 +531,13 @@
                                     <td>{{ patient[10] }}</td>
                                     <td>
                                         <div class="dropdown">
-                                            <button class="btn btn-secondary dropdown-toggle btn-sm" type="button"
-                                                id="dropdownMenuButton-{{ patient[0] }}" data-bs-toggle="dropdown"
-                                                aria-expanded="false">
-
+                                            <button class="btn btn-sm" type="button"
+                                                id="dropdownMenuButton-{{ patient[7] }}" data-bs-toggle="dropdown"
+                                                aria-expanded="false" style="background: transparent; border: none; color: inherit; padding: 5px 10px;">
+                                                <i class="fas fa-ellipsis-v text-secondary"></i>
                                             </button>
                                             <ul class="dropdown-menu"
-                                                aria-labelledby="dropdownMenuButton-{{ patient[0] }}">
+                                                aria-labelledby="dropdownMenuButton-{{ patient[7] }}">
                                                 {% if permissions.get('abrir_weasis_local') %}
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="abrirViewer('{{ patient[7] }}')"><i
@@ -641,7 +618,7 @@
                                         </div>
                                     </td>
                                 </tr>
-                                <tr class="collapse expanded-row" id="expand-{{ patient[0] }}">
+                                <tr class="collapse expanded-row" id="expand-{{ patient[7] }}">
                                     <td colspan="12"> <!-- ajuste o colspan se precisar -->
                                         <div class="p-3">
                                             <h6>Detalhes do Atendimento</h6>
@@ -741,6 +718,20 @@
                         <option value="1x1">1 linha x 1 coluna (1 por página)</option>
                         <option value="2x2">2 linhas x 2 colunas (4 por página)</option>
                     </select>
+
+                    <div class="mb-3 mt-3">
+                        <label class="form-label d-block">Tema Especial:</label>
+                        <div class="btn-group" role="group" aria-label="Seleção de Tema">
+                            <input type="radio" class="btn-check" name="gender" id="gender-none" value="" checked>
+                            <label class="btn btn-outline-secondary" for="gender-none">Padrão</label>
+
+                            <input type="radio" class="btn-check" name="gender" id="gender-boy" value="boy">
+                            <label class="btn btn-outline-primary" for="gender-boy"><i class="fas fa-mars me-1"></i>Menino</label>
+
+                            <input type="radio" class="btn-check" name="gender" id="gender-girl" value="girl">
+                            <label class="btn btn-outline-danger" for="gender-girl"><i class="fas fa-venus me-1"></i>Menina</label>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="submit" class="btn btn-primary">Imprimir</button>
@@ -914,8 +905,9 @@
             formLayout.addEventListener('submit', function (e) {
                 e.preventDefault();
                 var layout = document.getElementById('layout-tudo').value;
+                var gender = document.querySelector('input[name="gender"]:checked').value;
                 if (window.currentStudyPk) {
-                    var url = '/generate_pdf/' + window.currentStudyPk + '?layout=' + layout;
+                    var url = '/generate_pdf/' + window.currentStudyPk + '?layout=' + layout + '&gender=' + gender;
                     window.open(url, '_blank');
                     var modal = bootstrap.Modal.getInstance(document.getElementById('modalLayoutImpressao'));
                     if (modal) modal.hide();
@@ -972,7 +964,7 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.study_iuid) {
-                        const url = `http://{{SERVER_IP}}:8042/ohif/viewer?StudyInstanceUIDs=${data.study_iuid}`;
+                        const url = `http://localhost:3000/viewer?StudyInstanceUIDs=${data.study_iuid}&token=${data.token}`;
                         window.open(url, '_blank');
                     } else {
                         alert('Erro ao obter o Study IUID');

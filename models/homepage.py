@@ -96,8 +96,8 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None, permission
                     END as pat_birthdate,
                    CASE 
                     WHEN LENGTH(p.pat_birthdate) = 8 AND p.pat_birthdate ~ '^[0-9]{8}$'
-                    THEN EXTRACT(YEAR FROM AGE(TO_DATE(pat_birthdate, 'YYYYMMDD'))) || ' a e ' ||
-                         EXTRACT(MONTH FROM AGE(TO_DATE(pat_birthdate, 'YYYYMMDD'))) || ' m'
+                    THEN EXTRACT(YEAR FROM AGE(TO_DATE(pat_birthdate, 'YYYYMMDD'))) || 'a e ' ||
+                         EXTRACT(MONTH FROM AGE(TO_DATE(pat_birthdate, 'YYYYMMDD'))) || 'm'
                     ELSE '' 
                    END AS idade,
                    CASE WHEN p.pat_sex IS NULL THEN '' ELSE p.pat_sex END AS pat_sex,
@@ -210,13 +210,20 @@ def carregar_homepage(user_name, user_id, user_role=None, alert=None, permission
     if sexo:
         conditions.append("p.pat_sex = %s")
         params.append(sexo)
-    if data_atendimento != "all":
+    if data_atendimento and data_atendimento != "all":
         if data_atendimento == "today":
             conditions.append("s.study_datetime::date = CURRENT_DATE")
         elif data_atendimento == "last3days":
             conditions.append("s.study_datetime::date >= CURRENT_DATE - INTERVAL '3 days'")
         elif data_atendimento == "last30days":
             conditions.append("s.study_datetime::date >= CURRENT_DATE - INTERVAL '30 days'")
+        else:
+            try:
+                datetime.strptime(data_atendimento, "%Y-%m-%d")
+                conditions.append("s.study_datetime::date = %s")
+                params.append(data_atendimento)
+            except ValueError:
+                pass
 
     if modalidade != "all":
         conditions.append("sr.modality = %s")

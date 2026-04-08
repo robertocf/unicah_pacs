@@ -15,12 +15,24 @@
             <button type="button" class="btn btn-outline-secondary" id="btn-toggle-all">Selecionar Tudo</button>
         </div>
         <div class="mb-4 text-center">
-            <label for="layout" class="form-label">Layout de Impressão:</label>
-            <select class="form-select w-auto d-inline-block" id="layout" name="layout">
+            <label for="layout" class="form-label d-block">Layout de Impressão:</label>
+            <select class="form-select w-auto d-inline-block mb-3" id="layout" name="layout">
                 <option value="2x3" selected>3 linhas x 2 colunas (6 por página)</option>
                 <option value="1x1">1 linha x 1 coluna (1 por página)</option>
                 <option value="2x2">2 linhas x 2 colunas (4 por página)</option>
             </select>
+
+            <label class="form-label d-block">Tema Especial:</label>
+            <div class="btn-group" role="group" aria-label="Seleção de Tema">
+                <input type="radio" class="btn-check" name="gender" id="gender-none" value="" checked>
+                <label class="btn btn-outline-secondary" for="gender-none">Padrão</label>
+
+                <input type="radio" class="btn-check" name="gender" id="gender-boy" value="boy">
+                <label class="btn btn-outline-primary" for="gender-boy"><i class="fas fa-mars me-1"></i>Menino</label>
+
+                <input type="radio" class="btn-check" name="gender" id="gender-girl" value="girl">
+                <label class="btn btn-outline-danger" for="gender-girl"><i class="fas fa-venus me-1"></i>Menina</label>
+            </div>
         </div>
 
     <div class="row gx-2 gy-2">

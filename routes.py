@@ -1,4 +1,5 @@
 import requests
+import base64
 import pydicom
 import bcrypt
 from io import BytesIO
@@ -12,7 +13,8 @@ from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 from db import get_db_connection
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+import jwt
 import hashlib
 import uuid
 import threading
@@ -260,6 +262,30 @@ def load_user(user_id):
 
 def handle_store(event):
     try:
+        calling_aet = "UNKNOWN"
+        try:
+            val = getattr(event.assoc.requestor.primitive, 'calling_ae_title', None)
+            if not val:
+                val = getattr(event.assoc.requestor, 'ae_title', b'UNKNOWN')
+            if isinstance(val, bytes):
+                calling_aet = val.decode('ascii').strip()
+            else:
+                calling_aet = str(val).strip()
+        except Exception as e:
+            print(f"Erro ao extrair AE Title do evento: {e}")
+
+        # Verificar se PACS autoriza o equipamento
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT active FROM pacs_ae_device WHERE aetitle = %s", (calling_aet,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row or not row[0]:
+            print(f"[REJEITADO] AE Title '{calling_aet}' não está autorizado ou inativo na lista (pacs_ae_device).")
+            return 0x0122
+
         ds = event.dataset
         ds.file_meta = event.file_meta
         if not hasattr(ds, "PatientID") or not hasattr(ds, "StudyInstanceUID") or not hasattr(ds, "SOPInstanceUID"):
@@ -383,7 +409,8 @@ def homepage():
 @app.route("/generate_pdf/<study_uid>")
 @login_required
 def generate_pdf(study_uid):
-    return gerar_pdf_completo(study_uid)
+    gender = request.args.get('gender')
+    return gerar_pdf_completo(study_uid, gender=gender)
 
 @app.route("/laudo", methods=["GET", "POST"])
 @login_required
@@ -746,6 +773,43 @@ def select_images(study_uid):
         dicom_base_url=dicom_base_url,
     )
 
+@app.route('/configuracoes/pacs', methods=['GET'])
+@login_required
+def configuracoes_pacs():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    echo_aetitle = None
+    echo_port = None
+    
+    try:
+        cur.execute("select echo_aetitle, echo_port from pacs_ae_echo, pacs_ae_port;")
+        row = cur.fetchone()
+        if row:
+            echo_aetitle = row[0]
+            echo_port = row[1]
+            
+        cur.execute("select t.pk, t.aetitle, t.modality, t.created_at, t.updated_at, t.active from pacs_ae_device t;")
+        devices = [
+            {
+                'pk': r[0],
+                'aetitle': r[1],
+                'modality': r[2],
+                'created_at': r[3],
+                'updated_at': r[4],
+                'active': r[5]
+            } for r in cur.fetchall()
+        ]
+    except Exception as e:
+        print(f"Erro ao buscar informações do PACS: {e}")
+        conn.rollback()
+        devices = []
+    finally:
+        cur.close()
+        conn.close()
+        
+    return render_template('pacs.html', echo_aetitle=echo_aetitle, echo_port=echo_port, devices=devices)
+
 @app.route('/dicom/importar', methods=['GET'])
 @login_required
 @permission_required('acessar_importar_dicom')
@@ -1105,6 +1169,7 @@ def generate_selected_pdf(study_uid):
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
     layout = request.form.get("layout", "2x3")
+    gender = request.form.get("gender")
     
     if layout == "1x1":
         top_margin = 800
@@ -1164,11 +1229,29 @@ def generate_selected_pdf(study_uid):
             x_position = (width - address_width) / 2
             c.drawString(x_position, 15, company_address)
             c.drawString(270, 30, f"página {i // images_per_page + 1} de {total_pages}")
-        row = (i % images_per_page) // cols
-        col = i % cols
-        x = 10 + col * (img_width + 10)
-        y = height - top_margin - (row * (img_height + row_spacing))
-        c.drawImage(ImageReader(jpg), x, y, img_width, img_height)
+
+            # Desenhar o laço no cabeçalho se houver tema selecionado
+            laco_path = None
+            if gender == 'boy':
+                laco_path = "static/laco_menino.png"
+            elif gender == 'girl':
+                laco_path = "static/laco_menina.png"
+            
+            if laco_path and os.path.exists(laco_path):
+                c.drawImage(laco_path, width - 70, height - 75, width=60, height=60, mask='auto')
+        border_size = 5
+        if gender == 'boy':
+            # Azul claro
+            c.setFillColorRGB(0.85, 0.92, 1.0) 
+            c.rect(x - border_size, y - border_size, img_width + 2*border_size, img_height + 2*border_size, fill=1, stroke=0)
+            c.drawImage(ImageReader(jpg), x, y, img_width, img_height)
+        elif gender == 'girl':
+            # Rosa claro
+            c.setFillColorRGB(1.0, 0.88, 0.95)
+            c.rect(x - border_size, y - border_size, img_width + 2*border_size, img_height + 2*border_size, fill=1, stroke=0)
+            c.drawImage(ImageReader(jpg), x, y, img_width, img_height)
+        else:
+            c.drawImage(ImageReader(jpg), x, y, img_width, img_height)
     c.showPage()
     c.save()
     for jpg in converted_image_paths:
@@ -1283,13 +1366,22 @@ def get_study_iuid(study_pk):
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        # Primeiro, faz o SELECT
-        cur.execute("SELECT study_iuid FROM study WHERE pk = %s", (study_pk,))
+        # Primeiro, faz o SELECT buscando também o ID do paciente para o token
+        cur.execute("""
+            SELECT s.study_iuid, p.pat_id 
+            FROM study s 
+            JOIN patient p ON s.patient_fk = p.pk 
+            WHERE s.pk = %s
+        """, (study_pk,))
         result = cur.fetchone()
         if not result:
             return jsonify({"error": "Study not found"}), 404
+        
         study_iuid = result[0]
-        # Faz o UPDATE
+        patient_id = result[1]
+
+        # Faz o UPDATE (log de visualização)
+        usuario_nome = current_user.name if (hasattr(current_user, 'is_authenticated') and current_user.is_authenticated) else 'Sistema'
         cur.execute(
             """
             UPDATE study
@@ -1298,10 +1390,25 @@ def get_study_iuid(study_pk):
                 study_custom3 = %s
             WHERE pk = %s
             """,
-            (current_user.name, study_pk)
+            (usuario_nome, study_pk)
         )
+
+        # Geração dinâmica do Token JWT para o Viewer OHIF
+        # Usa a chave configurada no projeto (padrão 'change-me-secure-key')
+        secret = app.config.get('OHIF_JWT_SECRET', 'change-me-secure-key')
+        payload = {
+            'study_iuid': study_iuid,
+            'patient_id': patient_id,
+            'iat': datetime.now(timezone.utc),
+            'exp': datetime.now(timezone.utc) + timedelta(minutes=10)
+        }
+        token = jwt.encode(payload, secret, algorithm='HS256')
+        
         conn.commit()
-        return jsonify({"study_iuid": study_iuid})
+        return jsonify({
+            "study_iuid": study_iuid,
+            "token": token
+        })
     except Exception as e:
         conn.rollback()
         return jsonify({"error": str(e)}), 500

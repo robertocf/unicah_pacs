@@ -13,7 +13,10 @@ from flask_login import current_user
 from db import get_db_connection  # ajuste conforme sua estrutura
 
 
-def gerar_pdf_completo(study_uid):
+def gerar_pdf_completo(study_uid, gender=None):
+    if not gender:
+        gender = request.args.get('gender')
+
     conn = get_db_connection()
     cur = conn.cursor()
 
@@ -21,7 +24,7 @@ def gerar_pdf_completo(study_uid):
         """
         SELECT p.pat_id,
                split_part(p.pat_name, '^^^^', 1) AS pat_name,
-                               CASE 
+                                CASE 
                 WHEN LENGTH(p.pat_birthdate) = 8 
                     AND p.pat_birthdate ~ '^[0-9]{8}$' 
                 THEN to_char(to_date(p.pat_birthdate, 'YYYYMMDD'), 'DD/MM/YYYY')
@@ -47,12 +50,11 @@ def gerar_pdf_completo(study_uid):
 
     # Buscar endereço e logo da empresa
     company_address = "Endereço não cadastrado"
-    company_logo = None
-    
+    company_logo = None    
     if patient_data or patient_data[5]:
         cur.execute(
-            "SELECT organization, address, logo_path FROM organizations_app WHERE LOWER(presentation) = LOWER(%s)",
-            [patient_data[5]]
+            "SELECT organization, address, logo_path,similarity(presentation, %s) AS score FROM organizations_app WHERE presentation %% %s ORDER BY score DESC LIMIT 1",
+            [patient_data[5], patient_data[5]]
         )
         org_result = cur.fetchone()
         if org_result:
@@ -60,7 +62,6 @@ def gerar_pdf_completo(study_uid):
                 company_address = org_result[1]
             if org_result[2]:
                 company_logo = os.path.join('static', 'logos', org_result[2])
-
     # Query para buscar o diretório do estudo
     archive_query = """
         SELECT SPLIT_PART(f.dirpath, E'\\\\', array_length(string_to_array(f.dirpath, E'\\\\'), 1)) AS dirpath
@@ -203,11 +204,34 @@ def gerar_pdf_completo(study_uid):
             c.drawString(x_position, 15, company_address)
             c.drawString(270, 30, f"página {i // images_per_page + 1} de {total_pages}")
 
+            # Desenhar o laço no cabeçalho se houver tema selecionado
+            laco_path = None
+            if gender == 'boy':
+                laco_path = "static/laco_menino.png"
+            elif gender == 'girl':
+                laco_path = "static/laco_menina.png"
+            
+            if laco_path and os.path.exists(laco_path):
+                c.drawImage(laco_path, width - 70, height - 75, width=60, height=60, mask='auto')
+
         row = (i % images_per_page) // cols
         col = i % cols
         x = 10 + col * (img_width + 10)
         y = height - top_margin - (row * (img_height + row_spacing))
-        c.drawImage(ImageReader(jpg), x, y, img_width, img_height)
+        
+        border_size = 5
+        if gender == 'boy':
+            # Azul claro
+            c.setFillColorRGB(0.85, 0.92, 1.0) 
+            c.rect(x - border_size, y - border_size, img_width + 2*border_size, img_height + 2*border_size, fill=1, stroke=0)
+            c.drawImage(ImageReader(jpg), x, y, img_width, img_height)
+        elif gender == 'girl':
+            # Rosa claro
+            c.setFillColorRGB(1.0, 0.88, 0.95)
+            c.rect(x - border_size, y - border_size, img_width + 2*border_size, img_height + 2*border_size, fill=1, stroke=0)
+            c.drawImage(ImageReader(jpg), x, y, img_width, img_height)
+        else:
+            c.drawImage(ImageReader(jpg), x, y, img_width, img_height)
 
     c.showPage()
     c.save()

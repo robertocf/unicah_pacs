@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}PACS Unicah - Configurações PACS{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Configurações PACS</h2>
+
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="card-title mb-0">Informações do Servidor PACS</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="border rounded p-3 h-100 bg-light">
+                        <div class="text-muted small fw-bold text-uppercase">AE Title do PACS</div>
+                        <div class="h4 mt-2 mb-0 text-primary">
+                            <i class="fas fa-server me-2"></i>{{ echo_aetitle or 'Não configurado' }}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="border rounded p-3 h-100 bg-light">
+                        <div class="text-muted small fw-bold text-uppercase">Porta TCP</div>
+                        <div class="h4 mt-2 mb-0 text-primary">
+                            <i class="fas fa-network-wired me-2"></i>{{ echo_port or 'Não configurado' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-info mt-3" role="alert">
+                <i class="fas fa-info-circle me-2"></i> Estas informações são utilizadas para a comunicação DICOM com o servidor PACS. O AE Title identifica a aplicação, enquanto a Porta TCP é responsável por receber as conexões.
+            </div>
+        </div>
+    </div>
+
+    <!-- Equipamentos Autorizados -->
+    <div class="card mt-4">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="card-title mb-0">Equipamentos Autorizados (AEs)</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%">ID</th>
+                            <th style="width: 25%">AE Title</th>
+                            <th style="width: 20%">Modalidade</th>
+                            <th style="width: 25%">Data Cadastro</th>
+                            <th style="width: 25%">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dev in devices %}
+                        <tr>
+                            <td>{{ dev.pk }}</td>
+                            <td class="fw-bold">{{ dev.aetitle }}</td>
+                            <td>{{ dev.modality or '-' }}</td>
+                            <td>{{ dev.created_at.strftime('%d/%m/%Y %H:%M') if dev.created_at else '' }}</td>
+                            <td>
+                                {% if dev.active %}
+                                <span class="badge bg-success">Ativo</span>
+                                {% else %}
+                                <span class="badge bg-danger">Inativo</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-3">Nenhum equipamento listado.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="alert alert-warning mt-3 mb-0" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i> Somente os equipamentos (AE Titles) listados acima como <strong>Ativo</strong> terão permissão para enviar estudos ao PACS de forma segura. Arquivos de fontes desconhecidas serão rejeitados.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
