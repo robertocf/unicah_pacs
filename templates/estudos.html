@@ -74,6 +74,14 @@
         font-weight: bold;
         font-size: 0.6rem;
     }
+
+    /* Ajuste para o menu de contexto */
+    .dropdown-menu.context-menu-active {
+        display: block !important;
+        position: fixed !important;
+        z-index: 10000;
+        margin: 0;
+    }
 </style>
 {% endblock %}
 
@@ -880,6 +888,51 @@
                         setTimeout(() => row.classList.remove('row-activated'), 800);
                         // aciona carregar local
                         abrirViewer(studyPk);
+                    }
+                });
+            });
+        }
+
+        // Menu de contexto (botão direito) na linha da tabela
+        if (tableBody) {
+            tableBody.querySelectorAll('tr').forEach(row => {
+                if (row.classList.contains('expanded-row')) return;
+
+                row.addEventListener('contextmenu', function (e) {
+                    // Se o clique for em um botão ou link, deixa o comportamento padrão
+                    if (e.target.closest('button') || e.target.closest('a')) return;
+
+                    e.preventDefault();
+
+                    // Fecha qualquer outro menu de contexto ou dropdown aberto
+                    document.querySelectorAll('.dropdown-menu.context-menu-active').forEach(m => {
+                        m.classList.remove('context-menu-active');
+                    });
+
+                    const dropdownMenu = row.querySelector('.dropdown-menu');
+                    if (dropdownMenu) {
+                        // Posiciona o menu onde o usuário clicou
+                        dropdownMenu.style.top = e.clientY + 'px';
+                        dropdownMenu.style.left = e.clientX + 'px';
+                        dropdownMenu.classList.add('context-menu-active');
+
+                        // Função para fechar o menu
+                        const fecharContextMenu = (event) => {
+                            // Se o clique for fora do menu OU se for em um item do menu (dropdown-item)
+                            if (!dropdownMenu.contains(event.target) || event.target.closest('.dropdown-item')) {
+                                dropdownMenu.classList.remove('context-menu-active');
+                                document.removeEventListener('click', fecharContextMenu);
+                                document.removeEventListener('contextmenu', fecharContextMenu);
+                                document.removeEventListener('scroll', fecharContextMenu, true);
+                            }
+                        };
+
+                        // Pequeno delay para evitar fechamento imediato
+                        setTimeout(() => {
+                            document.addEventListener('click', fecharContextMenu);
+                            document.addEventListener('contextmenu', fecharContextMenu);
+                            document.addEventListener('scroll', fecharContextMenu, true);
+                        }, 50);
                     }
                 });
             });
