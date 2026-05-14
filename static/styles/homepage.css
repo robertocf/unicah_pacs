@@ -127,6 +127,7 @@ body {
   width: 100%;
   font-size: 12px;
   border-collapse: collapse;
+  --bs-table-striped-bg: #F8F9FA;
 }
 
 .table td {
@@ -162,82 +163,82 @@ body {
   font-weight: bold;
 }
 
-.table th:nth-child(1),
-.table td:nth-child(1) {
+.table-estudos th:nth-child(1),
+.table-estudos td:nth-child(1) {
   width: 3%;
   text-align: center;
   overflow: hidden;
 }
 
-.table th:nth-child(2),
-.table td:nth-child(2) {
+.table-estudos th:nth-child(2),
+.table-estudos td:nth-child(2) {
   width: 5%;
   text-align: center;
 }
 
-.table th:nth-child(3),
-.table td:nth-child(3) {
+.table-estudos th:nth-child(3),
+.table-estudos td:nth-child(3) {
   width: 19%;
   text-align: left;
 }
 
-.table th:nth-child(4),
-.table td:nth-child(4) {
+.table-estudos th:nth-child(4),
+.table-estudos td:nth-child(4) {
   width: 7%;
   text-align: center;
 }
 
-.table th:nth-child(5),
-.table td:nth-child(5) {
+.table-estudos th:nth-child(5),
+.table-estudos td:nth-child(5) {
   width: 7%;
   text-align: center;
 }
 
-.table th:nth-child(6),
-.table td:nth-child(6) {
+.table-estudos th:nth-child(6),
+.table-estudos td:nth-child(6) {
   width: 5%;
   text-align: center;
 }
 
-.table th:nth-child(7),
-.table td:nth-child(7) {
+.table-estudos th:nth-child(7),
+.table-estudos td:nth-child(7) {
   width: 8%;
   text-align: center;
 }
 
-.table th:nth-child(8),
-.table td:nth-child(8) {
+.table-estudos th:nth-child(8),
+.table-estudos td:nth-child(8) {
   width: 12%;
   text-align: center;
 }
 
-.table th:nth-child(9),
-.table td:nth-child(9) {
+.table-estudos th:nth-child(9),
+.table-estudos td:nth-child(9) {
   width: 7%;
   text-align: center;
 }
 
-.table th:nth-child(10),
-.table td:nth-child(10) {
+.table-estudos th:nth-child(10),
+.table-estudos td:nth-child(10) {
   width: 6%;
   text-align: center;
   text-transform: uppercase;
 }
 
-.table th:nth-child(11),
-.table td:nth-child(11) {
+.table-estudos th:nth-child(11),
+.table-estudos td:nth-child(11) {
   width: 9%;
   text-align: center;
 }
 
-.table th:nth-child(12),
-.table td:nth-child(12) {
+.table-estudos th:nth-child(12),
+.table-estudos td:nth-child(12) {
   width: 6%;
   text-align: center;
 }
 
-.table th:nth-child(13),
-.table td:nth-child(13) {
+.table-estudos th:nth-child(13),
+.table-estudos td:nth-child(13) {
   width: 3%;
   text-align: center;
 }

@@ -1,0 +1,308 @@
+{% extends 'base.html' %}
+
+{% block title %}Configurações do Sistema - PACS Unicah{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn-action {
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.85rem;
+        margin: 0 2px;
+    }
+    .btn-edit {
+        background: #eff6ff;
+        color: #2563eb;
+    }
+    .btn-edit:hover {
+        background: #2563eb;
+        color: #fff;
+        transform: translateY(-1px);
+    }
+    .btn-delete {
+        background: #fff1f2;
+        color: #e11d48;
+    }
+    .btn-delete:hover {
+        background: #e11d48;
+        color: #fff;
+        transform: translateY(-1px);
+    }
+    
+    [data-theme='dark'] .btn-edit  { background: #1e3a5f; color: #60a5fa; }
+    [data-theme='dark'] .btn-delete { background: #3b1219; color: #f87171; }
+    [data-theme='dark'] .btn-edit:hover  { background: #2563eb; color: #fff; }
+    [data-theme='dark'] .btn-delete:hover { background: #e11d48; color: #fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="container-fluid mt-4">
+        <h4 class="mb-4"><i class="fas fa-cog me-2"></i>Configurações Gerais do Sistema</h4>
+
+        <div class="row">
+            <!-- Modo Manutenção -->
+            <div class="col-md-5">
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-white border-bottom-0 pt-3">
+                        <h6 class="card-title fw-bold mb-0">Status de Manutenção</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small">Ative esta opção para exibir um alerta de manutenção na página inicial para todos os usuários.</p>
+                        
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="maintenance_mode" 
+                                   {% if settings.maintenance_mode %}checked{% endif %}>
+                            <label class="form-check-label fw-bold" for="maintenance_mode">Ativar Modo Manutenção</label>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="maintenance_message" class="form-label small fw-bold">Mensagem do Alerta</label>
+                            <textarea class="form-control" id="maintenance_message" rows="3" 
+                                      placeholder="Ex: O sistema passará por manutenção das 22h às 00h.">{{ settings.maintenance_message }}</textarea>
+                        </div>
+
+                        <button class="btn btn-primary w-100" onclick="updateSettings()">
+                            <i class="fas fa-save me-2"></i>Salvar Status
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Adicionar Novidade/Nota -->
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white border-bottom-0 pt-3">
+                        <h6 class="card-title fw-bold mb-0">Adicionar Atualização ou Nota</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="update_category" class="form-label small fw-bold">Categoria</label>
+                            <select class="form-select" id="update_category">
+                                <option value="improvement">Melhoria / Atualização</option>
+                                <option value="release_note">Nota de Versão</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="update_content" class="form-label small fw-bold">Conteúdo</label>
+                            <textarea class="form-control" id="update_content" rows="4" placeholder="Ex: Adicionado suporte a novos filtros."></textarea>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="update_is_modal">
+                            <label class="form-check-label small fw-bold" for="update_is_modal">Exibir como Alerta (Modal)</label>
+                        </div>
+                        <button class="btn btn-success w-100" onclick="addUpdate()">
+                            <i class="fas fa-plus me-2"></i>Adicionar à Home
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Histórico de Atualizações -->
+            <div class="col-md-7">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white border-bottom-0 pt-3 d-flex justify-content-between align-items-center">
+                        <h6 class="card-title fw-bold mb-0">Histórico de Informações na Home</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle" id="updatesTable" style="font-size: 0.9rem;">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Categoria</th>
+                                        <th>Conteúdo</th>
+                                        <th class="text-center">Modal</th>
+                                        <th class="text-end">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for update in updates %}
+                                    <tr id="row-{{ update.pk }}">
+                                        <td class="text-muted">{{ update.created_at.strftime('%d/%m/%Y') }}</td>
+                                        <td>
+                                            {% if update.category == 'improvement' %}
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Melhoria</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Nota</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="max-width: 400px; white-space: pre-wrap;">{{ update.content }}</td>
+                                        <td class="text-center">
+                                            {% if update.is_modal %}
+                                            <i class="fas fa-check-circle text-success" title="Sim"></i>
+                                            {% else %}
+                                            <i class="fas fa-times-circle text-muted" title="Não"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end" style="white-space: nowrap;">
+                                            <button class="btn-action btn-edit" title="Editar" 
+                                                    onclick='openEditModal({{ update.pk }}, {{ update.category | tojson }}, {{ update.content | tojson }}, {{ "true" if update.is_modal else "false" }})'>
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn-action btn-delete" title="Excluir" 
+                                                    onclick="deleteUpdate({{ update.pk }})">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-muted">Nenhuma informação cadastrada.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Edição -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold">Editar Informação</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 pb-4">
+                <input type="hidden" id="edit_pk">
+                <div class="mb-3">
+                    <label for="edit_category" class="form-label small fw-bold">Categoria</label>
+                    <select class="form-select" id="edit_category">
+                        <option value="improvement">Melhoria / Atualização</option>
+                        <option value="release_note">Nota de Versão</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="edit_content" class="form-label small fw-bold">Conteúdo</label>
+                    <textarea class="form-control" id="edit_content" rows="6"></textarea>
+                </div>
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="edit_is_modal">
+                    <label class="form-check-label small fw-bold" for="edit_is_modal">Exibir como Alerta (Modal)</label>
+                </div>
+                <button class="btn btn-primary w-100 py-2" onclick="saveUpdate()">
+                    <i class="fas fa-check me-2"></i>Salvar Alterações
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateSettings() {
+    const maintenance_mode = document.getElementById('maintenance_mode').checked;
+    const maintenance_message = document.getElementById('maintenance_message').value;
+
+    fetch('/api/configuracoes/sistema/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ maintenance_mode, maintenance_message })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire('Sucesso', data.message, 'success');
+        } else {
+            Swal.fire('Erro', data.message, 'error');
+        }
+    });
+}
+
+function addUpdate() {
+    const category = document.getElementById('update_category').value;
+    const content = document.getElementById('update_content').value;
+    const is_modal = document.getElementById('update_is_modal').checked;
+
+    if (!content) return Swal.fire('Erro', 'O conteúdo não pode estar vazio.', 'warning');
+
+    fetch('/api/configuracoes/sistema/add_update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, content, is_modal })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire('Sucesso', data.message, 'success').then(() => location.reload());
+        } else {
+            Swal.fire('Erro', data.message, 'error');
+        }
+    });
+}
+
+function openEditModal(pk, category, content, is_modal) {
+    document.getElementById('edit_pk').value = pk;
+    document.getElementById('edit_category').value = category;
+    document.getElementById('edit_content').value = content;
+    document.getElementById('edit_is_modal').checked = is_modal;
+    
+    new bootstrap.Modal(document.getElementById('editModal')).show();
+}
+
+function saveUpdate() {
+    const pk = document.getElementById('edit_pk').value;
+    const category = document.getElementById('edit_category').value;
+    const content = document.getElementById('edit_content').value;
+    const is_modal = document.getElementById('edit_is_modal').checked;
+
+    if (!content) return Swal.fire('Erro', 'O conteúdo não pode estar vazio.', 'warning');
+
+    fetch(`/api/configuracoes/sistema/edit_update/${pk}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, content, is_modal })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire('Sucesso', data.message, 'success').then(() => location.reload());
+        } else {
+            Swal.fire('Erro', data.message, 'error');
+        }
+    });
+}
+
+function deleteUpdate(pk) {
+    Swal.fire({
+        title: 'Tem certeza?',
+        text: "Esta informação será removida da página inicial.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sim, remover!',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`/api/configuracoes/sistema/delete_update/${pk}`, {
+                method: 'DELETE'
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById(`row-${pk}`).remove();
+                    Swal.fire('Removido!', data.message, 'success');
+                } else {
+                    Swal.fire('Erro', data.message, 'error');
+                }
+            });
+        }
+    });
+}
+</script>
+{% endblock %}

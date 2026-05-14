@@ -1,89 +1,652 @@
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
+/* ═══════════════════════════════════════════════════════════════
+   select_images.css  —  Layout Drag-and-Drop para impressão DICOM
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Wrapper principal: três colunas ───────────────────────── */
+.si-wrapper {
+    display: grid;
+    grid-template-columns: 260px 1fr 260px;
+    /* A altura da navbar varia; usamos 80px como estimativa segura */
+    height: calc(100vh - 80px);
+    gap: 0;
+    background: #0e0e1a;
+    overflow: hidden;
 }
 
-h2 {
-    color: #333;
-    margin-bottom: 30px;
+/* ════════════════════════════════════════════════════════════════
+   PAINEL ESQUERDO — Thumbnails
+   ════════════════════════════════════════════════════════════════ */
+.si-left {
+    display: flex;
+    flex-direction: column;
+    background: #13132a;
+    border-right: 1px solid #2a2a4a;
+    overflow: hidden;
 }
 
-.btn-outline-secondary {
-    padding: 10px 25px;
-    font-size: 16px;
-    margin-bottom: 20px;
+.si-left-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid #2a2a4a;
+    flex-shrink: 0;
+    background: #0e0e1a;
 }
 
-.btn-lg {
-    padding: 12px 30px;
-    font-size: 16px;
+.si-left-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #a0a0cc;
 }
 
-.thumbnail {
-    width: 100%;
-    height: 300px;
-    object-fit: contain;
-    border: 1px solid #ddd;
-    margin-bottom: 10px;
-    transition: transform 0.2s;
+.si-left-count {
+    font-size: 0.72rem;
+    color: #5e5e8a;
 }
 
-.image-box {
-    position: relative;
-    border: 1px solid #ccc;
+.si-thumb-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: #2a2a4a transparent;
+}
+
+.si-thumb-grid::-webkit-scrollbar { width: 4px; }
+.si-thumb-grid::-webkit-scrollbar-track { background: transparent; }
+.si-thumb-grid::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 2px; }
+
+/* ── Card de thumbnail ─────────────────────────────────────── */
+.si-thumb-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #1c1c35;
+    border: 1px solid #2a2a4a;
     border-radius: 8px;
-    padding: 10px;
-    margin-bottom: 15px;
+    padding: 6px 8px;
+    cursor: grab;
+    transition: border-color 0.2s, background 0.2s, transform 0.15s, opacity 0.2s;
+    user-select: none;
+    position: relative;
+}
+
+.si-thumb-card:hover {
+    border-color: #5e6ad2;
+    background: #20203c;
+    transform: translateX(3px);
+}
+
+.si-thumb-card:active { cursor: grabbing; }
+
+.si-thumb-card.dragging {
+    opacity: 0.45;
+    transform: scale(0.97);
+}
+
+/* Thumbnail usada (já colocada num slot) */
+.si-thumb-card.si-thumb-used {
+    opacity: 0.35;
+    border-color: #3d3d60;
+    background: #181830;
+    cursor: default;
+}
+
+.si-thumb-card.si-thumb-used:hover { transform: none; border-color: #3d3d60; }
+
+.si-thumb-img-wrap {
+    position: relative;
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    border-radius: 5px;
+    overflow: hidden;
+    background: #0a0a18;
+}
+
+.si-thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: 5px;
+}
+
+.si-thumb-img.loading {
+    opacity: 0;
+}
+
+.si-thumb-spinner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.si-thumb-spinner::after {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border: 2px solid #5e6ad2;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.si-thumb-label {
+    font-size: 0.78rem;
+    color: #7070a0;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Dica de duplo-clique */
+.si-thumb-card::after {
+    content: "✦ dbl-clique p/ add";
+    position: absolute;
+    right: 8px;
+    font-size: 0.6rem;
+    color: #4a4a70;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   CENTRO — Simulação A4
+   ════════════════════════════════════════════════════════════════ */
+.si-center {
+    display: flex;
+    flex-direction: column;
+    background: #0e0e1a;
+    overflow: hidden;
+}
+
+.si-center-header {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 20px 10px;
+    border-bottom: 1px solid #2a2a4a;
+    flex-shrink: 0;
+    background: #0e0e1a;
+}
+
+.si-center-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #a0a0cc;
+}
+
+/* ── Card de dados do paciente ─────────────────────────────── */
+.si-patient-card {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background: linear-gradient(135deg, #161628 0%, #1a1a35 100%);
+    border: 1px solid #2a2a50;
+    border-radius: 8px;
+    padding: 9px 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+}
+
+.si-patient-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    align-items: center;
+}
+
+.si-patient-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75rem;
+    color: #b0b0d8;
+    white-space: nowrap;
+}
+
+.si-patient-item i {
+    font-size: 0.7rem;
+    color: #5e5e9a;
+    width: 12px;
     text-align: center;
-    background-color: #f9f9f9;
-    transition: all 0.3s ease;
+}
+
+.si-patient-item strong {
+    color: #7878b8;
+    font-weight: 600;
+    margin-right: 2px;
+}
+
+.si-patient-name {
+    color: #d0d0f0;
+    font-weight: 600;
+}
+
+/* ── Área de rolagem para o A4 ─────────────────────────────── */
+.si-a4-scroll {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px 10px;
+    scrollbar-width: thin;
+    scrollbar-color: #2a2a4a transparent;
+}
+
+.si-a4-scroll::-webkit-scrollbar { width: 6px; }
+.si-a4-scroll::-webkit-scrollbar-track { background: transparent; }
+.si-a4-scroll::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 3px; }
+
+/* ── Wrapper de página (suporta múltiplos A4 no scroll) ──── */
+.si-page-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 28px;
+}
+
+.si-page-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #4a4a70;
+    text-align: center;
+    user-select: none;
+}
+
+/* ── Folha A4 ──────────────────────────────────────────────── */
+.si-a4 {
+    width: 595px;        /* A4 a 72dpi */
+    min-height: 842px;
+    background: #ffffff;
+    border-radius: 4px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4);
+    display: grid;
+    gap: 4px;
+    padding: 12px;
+    box-sizing: border-box;
+    position: relative;
+}
+
+/* ── Slot de imagem ────────────────────────────────────────── */
+.si-slot {
+    position: relative;
+    border-radius: 4px;
+    overflow: hidden;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    min-height: 80px;
+}
+
+.si-slot.empty {
+    border: 2px dashed #c8c8d8;
+    background: #f5f5fa;
+}
+
+.si-slot.filled {
+    border: 2px solid #5e6ad2;
+    background: #000;
+}
+
+.si-slot.drag-over {
+    border-color: #7c8df0;
+    background: #eaedff;
+    box-shadow: inset 0 0 0 3px rgba(94,106,210,0.35);
+}
+
+.si-slot.drag-over .si-slot-placeholder {
+    color: #5e6ad2;
+}
+
+/* Placeholder vazio */
+.si-slot-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: #b0b0c8;
+    font-size: 1rem;
+    pointer-events: none;
+    transition: color 0.2s;
+}
+
+.si-slot-placeholder small {
+    font-size: 0.65rem;
+    letter-spacing: 0.03em;
+}
+
+/* Imagem no slot */
+.si-slot-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    cursor: grab;
+}
+
+.si-slot-img:active { cursor: grabbing; }
+
+/* Botão remover */
+.si-slot-remove {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    background: rgba(220,50,50,0.85);
+    border: none;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 10;
+    line-height: 1;
 }
 
-.image-box:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+.si-slot:hover .si-slot-remove { opacity: 1; }
+
+/* Número do slot */
+.si-slot-num {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    background: rgba(94,106,210,0.85);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.image-box.selected {
-    border-color: #007bff;
-    background-color: #f0f7ff;
+/* ════════════════════════════════════════════════════════════════
+   PAINEL DIREITO — Controles
+   ════════════════════════════════════════════════════════════════ */
+.si-right {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: #13132a;
+    border-left: 1px solid #2a2a4a;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #2a2a4a transparent;
 }
 
-.row {
-    margin: 0 -10px;
+.si-right::-webkit-scrollbar { width: 4px; }
+.si-right::-webkit-scrollbar-track { background: transparent; }
+.si-right::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 2px; }
+
+.si-right-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid #2a2a4a;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #a0a0cc;
+    background: #0e0e1a;
+    flex-shrink: 0;
 }
 
-.col-md-4 {
-    padding: 0 10px;
+/* ── Grupo de controle ─────────────────────────────────────── */
+.si-control-group {
+    padding: 16px;
+    border-bottom: 1px solid #1e1e38;
 }
 
-.overlay-number {
-            position: absolute;
-            top: 6px;
-            left: 6px;
-            background-color: rgba(0, 123, 255, 0.8);
-            color: white;
-            font-weight: bold;
-            padding: 4px 7px;
-            border-radius: 50%;
-            font-size: 14px;
-            display: none;
+.si-control-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #6060a0;
+    margin-bottom: 10px;
 }
 
-.image-box.selected .overlay-number {
-            display: inline-block;
+/* ── Opções de layout ──────────────────────────────────────── */
+.si-layout-options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
-.thumbnail.loading {
-    background: #f8f9fa url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiBzdHJva2U9IiMwMDdiZmYiPjxnIGZpbGw9Im5vbmUiIGZpbGwtcnVsZT0iZXZlbm9kZCI+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMSAxKSIgc3Ryb2tlLXdpZHRoPSIyIj48Y2lyY2xlIHN0cm9rZS1vcGFjaXR5PSIuNSIgY3g9IjE4IiBjeT0iMTgiIHI9IjE4Ii8+PHBhdGggZD0ibTM5IDM5YzAtOS45NC04LjA2LTE4LTE4LTE4Ij48YW5pbWF0ZVRyYW5zZm9ybSBhdHRyaWJ1dGVOYW1lPSJ0cmFuc2Zvcm0iIHR5cGU9InJvdGF0ZSIgZnJvbT0iMCAzOSAzOSIgdG89IjM2MCAzOSAzOSIgZHVyPSIxcyIgcmVwZWF0Q291bnQ9ImluZGVmaW5pdGUiLz48L3BhdGg+PC9nPjwvZz48L3N2Zz4=') no-repeat center center;
-    background-size: 40px 40px;
+.si-layout-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: #1c1c35;
+    border: 1px solid #2a2a4a;
+    border-radius: 7px;
+    color: #a0a0cc;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    text-align: left;
+    width: 100%;
+    font-size: 0.82rem;
 }
 
-/* Ajuste da altura do rodapé apenas nesta página */
+.si-layout-btn:hover {
+    border-color: #5e6ad2;
+    background: #20203c;
+}
+
+.si-layout-btn.active {
+    border-color: #5e6ad2;
+    background: #1e2050;
+    color: #c8ccff;
+}
+
+/* Mini ícone de grade */
+.si-layout-icon {
+    display: grid;
+    grid-template-columns: repeat(2, 12px);
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.si-layout-icon span {
+    background: currentColor;
+    border-radius: 1px;
+    height: 8px;
+}
+
+.si-layout-icon.layout-2x2 {
+    grid-template-columns: repeat(2, 12px);
+    grid-template-rows: repeat(2, 8px);
+}
+
+.si-layout-icon.layout-1x1 {
+    grid-template-columns: 26px;
+    grid-template-rows: 18px;
+}
+
+.si-layout-icon.layout-1x1 span {
+    height: 18px;
+}
+
+.si-layout-desc small {
+    color: #6060a0;
+    font-size: 0.72rem;
+}
+
+/* ── Opções de tema ────────────────────────────────────────── */
+.si-theme-options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.si-theme-btn {
+    padding: 8px 10px;
+    background: #1c1c35;
+    border: 1px solid #2a2a4a;
+    border-radius: 7px;
+    color: #a0a0cc;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    text-align: left;
+    width: 100%;
+    font-size: 0.82rem;
+}
+
+.si-theme-btn:hover { border-color: #5e6ad2; background: #20203c; }
+.si-theme-btn.active { border-color: #5e6ad2; background: #1e2050; color: #c8ccff; }
+
+/* ── Resumo ────────────────────────────────────────────────── */
+.si-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: #7070a0;
+    padding: 3px 0;
+}
+
+.si-summary-row strong {
+    color: #c0c0e0;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Ações ─────────────────────────────────────────────────── */
+.si-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.si-btn-clear,
+.si-btn-auto {
+    width: 100%;
+    padding: 8px;
+    border-radius: 7px;
+    border: 1px solid #2a2a4a;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.si-btn-clear {
+    background: #2a1a1a;
+    color: #e0a0a0;
+    border-color: #4a2a2a;
+}
+.si-btn-clear:hover { background: #3a1a1a; border-color: #cc4444; }
+
+.si-btn-auto {
+    background: #1a2a1a;
+    color: #a0e0a0;
+    border-color: #2a4a2a;
+}
+.si-btn-auto:hover { background: #1a3a1a; border-color: #44cc44; }
+
+/* ── Área de impressão ─────────────────────────────────────── */
+.si-print-area {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.si-btn-print {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #5e6ad2 0%, #4a54b0 100%);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 16px rgba(94,106,210,0.35);
+}
+
+.si-btn-print:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(94,106,210,0.5);
+}
+
+.si-btn-print:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.si-btn-cancel {
+    display: block;
+    width: 100%;
+    padding: 9px;
+    text-align: center;
+    background: transparent;
+    border: 1px solid #2a2a4a;
+    border-radius: 7px;
+    color: #7070a0;
+    font-size: 0.8rem;
+    text-decoration: none;
+    transition: background 0.2s, color 0.2s;
+}
+
+.si-btn-cancel:hover {
+    background: #1c1c35;
+    color: #a0a0cc;
+    text-decoration: none;
+}
+
+/* ── Animações ─────────────────────────────────────────────── */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Ajuste do footer nesta página */
 .footer {
-    padding-top: 0.25rem !important; /* reduz um pouco a altura */
+    padding-top: 0.25rem !important;
     padding-bottom: 0.25rem !important;
 }
 
+/* ── Responsividade mínima ─────────────────────────────────── */
+@media (max-width: 900px) {
+    .si-wrapper {
+        grid-template-columns: 200px 1fr 220px;
+    }
+    .si-a4 {
+        width: 480px;
+    }
+}
+
+@media (max-width: 700px) {
+    .si-wrapper {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        overflow-y: auto;
+    }
+    .si-left, .si-right {
+        max-height: 250px;
+    }
+    .si-a4 {
+        width: 95vw;
+        min-height: auto;
+    }
+}

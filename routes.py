@@ -36,6 +36,7 @@ from services.permissions import get_user_permissions, list_permission_definitio
 from models.ReportTemplate import ReportTemplate
 from models.ReportLayout import ReportLayout
 from models.AutoTexto import AutoTexto
+from models.SystemAnnouncement import SystemSettings, SystemUpdate
 
 @app.context_processor
 def inject_permissions():
@@ -397,7 +398,98 @@ def atualizar_perfil():
 @app.route("/home", methods=["GET"]) 
 @login_required
 def home():
-    return render_template("homepage.html")
+    settings = SystemSettings.query.get(1)
+    improvements = SystemUpdate.query.filter_by(category='improvement', active=True).order_by(SystemUpdate.created_at.desc()).all()
+    release_notes = SystemUpdate.query.filter_by(category='release_note', active=True).order_by(SystemUpdate.created_at.desc()).all()
+    return render_template("homepage.html", 
+                           system_settings=settings,
+                           improvements=improvements,
+                           release_notes=release_notes)
+
+@app.route("/configuracoes/sistema", methods=["GET"])
+@login_required
+@permission_required('configurar_sistema')
+def configuracoes_sistema():
+    settings = SystemSettings.query.get(1)
+    updates = SystemUpdate.query.order_by(SystemUpdate.created_at.desc()).all()
+    return render_template("configuracoes_sistema.html", settings=settings, updates=updates)
+
+@app.route("/api/configuracoes/sistema/update", methods=["POST"])
+@login_required
+@permission_required('configurar_sistema')
+def update_system_settings():
+    data = request.json
+    settings = SystemSettings.query.get(1)
+    if not settings:
+        settings = SystemSettings(pk=1)
+        db.session.add(settings)
+    
+    settings.maintenance_mode = data.get('maintenance_mode', False)
+    settings.maintenance_message = data.get('maintenance_message', settings.maintenance_message)
+    
+    try:
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Configurações atualizadas com sucesso.'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route("/api/configuracoes/sistema/add_update", methods=["POST"])
+@login_required
+@permission_required('configurar_sistema')
+def add_system_update():
+    data = request.json
+    category = data.get('category')
+    content = data.get('content')
+    is_modal = data.get('is_modal', False)
+    
+    if not category or not content:
+        return jsonify({'success': False, 'message': 'Dados incompletos.'}), 400
+        
+    new_update = SystemUpdate(category=category, content=content, is_modal=is_modal)
+    try:
+        db.session.add(new_update)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Informação adicionada com sucesso.'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route("/api/configuracoes/sistema/edit_update/<int:pk>", methods=["POST"])
+@login_required
+@permission_required('configurar_sistema')
+def edit_system_update(pk):
+    data = request.json
+    update_item = SystemUpdate.query.get(pk)
+    if not update_item:
+        return jsonify({'success': False, 'message': 'Item não encontrado.'}), 404
+        
+    update_item.category = data.get('category', update_item.category)
+    update_item.content = data.get('content', update_item.content)
+    update_item.is_modal = data.get('is_modal', update_item.is_modal)
+    
+    try:
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Informação atualizada com sucesso.'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route("/api/configuracoes/sistema/delete_update/<int:pk>", methods=["DELETE"])
+@login_required
+@permission_required('configurar_sistema')
+def delete_system_update(pk):
+    update_item = SystemUpdate.query.get(pk)
+    if not update_item:
+        return jsonify({'success': False, 'message': 'Item não encontrado.'}), 404
+        
+    try:
+        db.session.delete(update_item)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Item removido com sucesso.'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route("/estudos", methods=["GET", "POST"]) 
 @login_required
@@ -752,6 +844,7 @@ def select_images(study_uid):
     archive_result = cur.fetchone()
     archive_path = archive_result[0] if archive_result else "archive"
     
+    # Query de arquivos DICOM
     query = """
         SELECT concat(fl.filepath) AS caminho
         FROM files fl
@@ -763,6 +856,45 @@ def select_images(study_uid):
     """
     cur.execute(query, [study_uid])
     dicom_files = [row[0] for row in cur.fetchall()]
+
+    # Query de dados do paciente para exibição no cabeçalho
+    patient_query = """
+        SELECT p.pat_id,
+               split_part(p.pat_name, '^^^^', 1) AS pat_name,
+               CASE
+                   WHEN LENGTH(p.pat_birthdate) = 8 AND p.pat_birthdate ~ '^[0-9]{8}$'
+                   THEN to_char(to_date(p.pat_birthdate, 'YYYYMMDD'), 'DD/MM/YYYY')
+                   ELSE ''
+               END AS pat_birthdate,
+               CASE
+                   WHEN LENGTH(p.pat_birthdate) = 8 AND p.pat_birthdate ~ '^[0-9]{8}$'
+                   THEN EXTRACT(YEAR FROM AGE(TO_DATE(p.pat_birthdate, 'YYYYMMDD'))) || ' anos e ' ||
+                        EXTRACT(MONTH FROM AGE(TO_DATE(p.pat_birthdate, 'YYYYMMDD'))) || ' meses'
+                   ELSE ''
+               END AS idade,
+               p.pat_sex,
+               to_char(s.study_datetime, 'DD/MM/YYYY HH24:MI') AS study_datetime,
+               COALESCE(s.study_desc, '') AS study_desc
+        FROM patient p
+        JOIN study s ON s.patient_fk = p.pk
+        WHERE s.pk = %s
+        LIMIT 1
+    """
+    cur.execute(patient_query, [study_uid])
+    row = cur.fetchone()
+    patient = None
+    if row:
+        sex_map = {'M': 'Masculino', 'F': 'Feminino', 'O': 'Outro'}
+        patient = {
+            'id':         row[0] or '',
+            'name':       row[1] or '',
+            'birthdate':  row[2] or '',
+            'age':        row[3] or '',
+            'sex':        sex_map.get((row[4] or '').upper(), row[4] or ''),
+            'study_date': row[5] or '',
+            'study_desc': row[6] or '',
+        }
+
     cur.close()
     conn.close()
     dicom_base_url = f"http://{SERVER_IP}/{archive_path}/"
@@ -771,6 +903,7 @@ def select_images(study_uid):
         dicom_files=dicom_files,
         study_uid=study_uid,
         dicom_base_url=dicom_base_url,
+        patient=patient,
     )
 
 @app.route('/configuracoes/pacs', methods=['GET'])
@@ -1054,6 +1187,12 @@ PID|1||{pat_id}^^^||{pat_name}^^^||{pat_birthdate.replace('-','')}|{pat_sex}||""
 @login_required
 def generate_selected_pdf(study_uid):
     selected_files = request.form.getlist("selected_files")
+    raw_slot_indices = request.form.getlist("slot_indices")
+    # Converte para int; se ausente/inválido usa sequência
+    if raw_slot_indices and len(raw_slot_indices) == len(selected_files):
+        slot_indices = [int(s) for s in raw_slot_indices]
+    else:
+        slot_indices = list(range(len(selected_files)))
     if not selected_files:
         return "Nenhuma imagem selecionada.", 400
     conn = get_db_connection()
@@ -1094,7 +1233,7 @@ def generate_selected_pdf(study_uid):
 
     if patient_data and patient_data[5] != '': 
         cur.execute(
-            "SELECT organization, address, logo_path FROM organizations_app WHERE LOWER(presentation) = LOWER(%s)",
+            "SELECT organization, address, logo_path,similarity(presentation, %s) AS score FROM organizations_app WHERE presentation %% %s ORDER BY score DESC LIMIT 1",
             (patient_data[5],)
         )
         org_result = cur.fetchone()        
@@ -1125,8 +1264,9 @@ def generate_selected_pdf(study_uid):
     dicom_base_url = f"http://{SERVER_IP}/{archive_path}/"
     output_dir = "static/temp"
     os.makedirs(output_dir, exist_ok=True)
-    converted_image_paths = []
-    for file_path in selected_files:
+    # Lista de (jpg_path, slot_index) para preservar posição no layout
+    converted_images = []
+    for file_path, slot_idx in zip(selected_files, slot_indices):
         try:
             dicom_url = f"{dicom_base_url}{file_path}"
             print(f"DEBUG: Tentando acessar URL: {dicom_url}")
@@ -1142,7 +1282,6 @@ def generate_selected_pdf(study_uid):
             
             if response.status_code == 401:
                 print("DEBUG: Erro 401 - Tentando com credenciais alternativas")
-                # Tentar com senha em texto plano
                 auth_alt = (f'{NGINX_AUTH_USER}', f'{NGINX_AUTH_PASSWORD}')
                 response = requests.get(dicom_url, auth=auth_alt, timeout=10)
                 print(f"DEBUG: Status com credenciais alternativas: {response.status_code}")
@@ -1160,10 +1299,10 @@ def generate_selected_pdf(study_uid):
             file_name = os.path.basename(file_path)
             jpg_path = os.path.join(output_dir, f"{file_name}.jpg")
             img.save(jpg_path, "JPEG", quality=95)
-            converted_image_paths.append(jpg_path)
+            converted_images.append((jpg_path, slot_idx))
         except Exception as e:
             print(f"Erro convertendo {file_path}: {str(e)}")
-    if not converted_image_paths:
+    if not converted_images:
         return "Falha ao converter as imagens selecionadas.", 500
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
@@ -1172,89 +1311,109 @@ def generate_selected_pdf(study_uid):
     gender = request.form.get("gender")
     
     if layout == "1x1":
-        top_margin = 800
+        # Imagem centralizada verticalmente entre cabeçalho e rodapé
+        # Área útil: y=40 (rodapé) até y=750 (abaixo do cabeçalho) = 710pt
+        img_height = 660
+        img_width  = 565
         images_per_page = 1
-        rows = 1
-        cols = 1
+        rows        = 1
+        cols        = 1
         row_spacing = 2
-        img_height = 700
-        img_width = 575
+        top_margin  = 75   # y do fundo da imagem: 75→735 (cabe dentro da página)
     elif layout == "2x2":
-        top_margin = 450
+        # 2 linhas × 2 colunas — img_height≈340, cada linha + espaço = 342pt
+        # linha 0: y=400→740 | linha 1: y=58→398 — tudo dentro de 40-750
+        img_height  = 680 / 2          # ≈ 340
+        img_width   = (width - 30) / 2
         images_per_page = 4
-        rows = 2
-        cols = 2
+        rows        = 2
+        cols        = 2
         row_spacing = 2
-        img_height = 680 / rows
-        img_width = (width - 30) / cols
+        top_margin  = 400
     else:  # padrão 2x3
-        top_margin = 330
+        # 3 linhas × 2 colunas — img_height≈216, cada linha + espaço = 221pt
+        # linha 0: y=480→697 | linha 1: y=259→476 | linha 2: y=38→255 ✓
+        img_height  = 650 / 3          # ≈ 216.67
+        img_width   = (width - 30) / 2
         images_per_page = 6
-        rows = 3
-        cols = 2
+        rows        = 3
+        cols        = 2
         row_spacing = 5
-        img_height = 650 / rows
-        img_width = (width - 30) / cols
-    total_pages = (len(converted_image_paths) + images_per_page - 1) // images_per_page
-    current_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-    c.setFont("Times-Roman", 6)
-    c.drawString(455, height - 10, f"Documento impresso em: {current_time}")
-    for i, jpg in enumerate(converted_image_paths):
-        if i % images_per_page == 0:
-            if i != 0:
-                c.showPage()
-            c.setFont("Times-Bold", 10)
-            c.setTitle(f"Imagem de {patient_data[1]}")
-            c.drawString(170, height - 20, f"ID:")
-            c.drawString(170, height - 35, f"Paciente:")
-            c.drawString(170, height - 50, f"Nasc:")
-            c.drawString(260, height - 50, f"Sexo:")
-            c.drawString(310, height - 50, f"Idade:")
-            c.drawString(310, height - 65, f"Solicitante:")
-            c.drawString(170, height - 65, f"Estudo:")
-            c.drawString(170, height - 80, f"Procedimento:")
-            c.setFont("Times-Roman", 10)
-            c.drawString(186, height - 20, f"{patient_data[0]}")
-            c.drawString(211, height - 35, f"{patient_data[1]}")
-            c.drawString(195, height - 50, f"{patient_data[2]}")
-            c.drawString(340, height - 50, f"{patient_data[3]}")
-            c.drawString(205, height - 65, f"{patient_data[4]}")
-            c.drawString(285, height - 50, f"{patient_data[6]}")
-            c.drawString(360, height - 65, f"{patient_data[7]}")
-            c.drawString(235, height - 80, f"{patient_data[8]}")
-            logo_to_use = company_logo if company_logo and os.path.exists(company_logo) else logo_path
-            c.drawImage(logo_to_use, width - 585, height - 60, width=150, height=50)
-            c.setFont("Times-Roman", 9)
-            address_width = c.stringWidth(company_address, "Helvetica", 9)
-            x_position = (width - address_width) / 2
-            c.drawString(x_position, 15, company_address)
-            c.drawString(270, 30, f"página {i // images_per_page + 1} de {total_pages}")
+        top_margin  = 505
+    # Agrupar imagens por página usando o slot_index real
+    from collections import defaultdict
+    pages_dict = defaultdict(list)
+    for jpg_path, slot_idx in converted_images:
+        page_num = slot_idx // images_per_page
+        pos_na_pagina = slot_idx % images_per_page
+        pages_dict[page_num].append((pos_na_pagina, jpg_path))
 
-            # Desenhar o laço no cabeçalho se houver tema selecionado
-            laco_path = None
-            if gender == 'boy':
-                laco_path = "static/laco_menino.png"
-            elif gender == 'girl':
-                laco_path = "static/laco_menina.png"
-            
-            if laco_path and os.path.exists(laco_path):
-                c.drawImage(laco_path, width - 70, height - 75, width=60, height=60, mask='auto')
-        border_size = 5
+    total_pages = max(pages_dict.keys()) + 1 if pages_dict else 1
+    current_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
+    def draw_header(page_num):
+        """Desenha cabeçalho, rodapé e laço na página atual."""
+        c.setFont("Times-Roman", 6)
+        c.drawString(455, height - 10, f"Documento impresso em: {current_time}")
+        c.setFont("Times-Bold", 10)
+        c.setTitle(f"Imagem de {patient_data[1]}")
+        c.drawString(170, height - 20, f"ID:")
+        c.drawString(170, height - 35, f"Paciente:")
+        c.drawString(170, height - 50, f"Nasc:")
+        c.drawString(260, height - 50, f"Sexo:")
+        c.drawString(310, height - 50, f"Idade:")
+        c.drawString(310, height - 65, f"Solicitante:")
+        c.drawString(170, height - 65, f"Estudo:")
+        c.drawString(170, height - 80, f"Procedimento:")
+        c.setFont("Times-Roman", 10)
+        c.drawString(186, height - 20, f"{patient_data[0]}")
+        c.drawString(211, height - 35, f"{patient_data[1]}")
+        c.drawString(195, height - 50, f"{patient_data[2]}")
+        c.drawString(340, height - 50, f"{patient_data[3]}")
+        c.drawString(205, height - 65, f"{patient_data[4]}")
+        c.drawString(285, height - 50, f"{patient_data[6]}")
+        c.drawString(360, height - 65, f"{patient_data[7]}")
+        c.drawString(235, height - 80, f"{patient_data[8]}")
+        logo_to_use = company_logo if company_logo and os.path.exists(company_logo) else logo_path
+        c.drawImage(logo_to_use, width - 585, height - 60, width=150, height=50)
+        c.setFont("Times-Roman", 9)
+        address_width = c.stringWidth(company_address, "Helvetica", 9)
+        x_position = (width - address_width) / 2
+        c.drawString(x_position, 15, company_address)
+        c.drawString(270, 30, f"página {page_num + 1} de {total_pages}")
+        # Laço temático
+        laco_path = None
         if gender == 'boy':
-            # Azul claro
-            c.setFillColorRGB(0.85, 0.92, 1.0) 
-            c.rect(x - border_size, y - border_size, img_width + 2*border_size, img_height + 2*border_size, fill=1, stroke=0)
-            c.drawImage(ImageReader(jpg), x, y, img_width, img_height)
+            laco_path = "static/laco_menino.png"
         elif gender == 'girl':
-            # Rosa claro
-            c.setFillColorRGB(1.0, 0.88, 0.95)
-            c.rect(x - border_size, y - border_size, img_width + 2*border_size, img_height + 2*border_size, fill=1, stroke=0)
-            c.drawImage(ImageReader(jpg), x, y, img_width, img_height)
-        else:
-            c.drawImage(ImageReader(jpg), x, y, img_width, img_height)
+            laco_path = "static/laco_menina.png"
+        if laco_path and os.path.exists(laco_path):
+            c.drawImage(laco_path, width - 70, height - 75, width=60, height=60, mask='auto')
+
+    for page_idx, page_num in enumerate(sorted(pages_dict.keys())):
+        if page_idx != 0:
+            c.showPage()
+        draw_header(page_num)
+        # Desenhar cada imagem na posição exata do slot
+        for pos_na_pagina, jpg in pages_dict[page_num]:
+            col_idx = pos_na_pagina % cols
+            row_idx = pos_na_pagina // cols
+            x = 15 + col_idx * img_width
+            y = top_margin - row_idx * (img_height + row_spacing)
+            border_size = 5
+            if gender == 'boy':
+                c.setFillColorRGB(0.85, 0.92, 1.0)
+                c.rect(x - border_size, y - border_size, img_width + 2*border_size, img_height + 2*border_size, fill=1, stroke=0)
+                c.drawImage(ImageReader(jpg), x, y, img_width, img_height)
+            elif gender == 'girl':
+                c.setFillColorRGB(1.0, 0.88, 0.95)
+                c.rect(x - border_size, y - border_size, img_width + 2*border_size, img_height + 2*border_size, fill=1, stroke=0)
+                c.drawImage(ImageReader(jpg), x, y, img_width, img_height)
+            else:
+                c.drawImage(ImageReader(jpg), x, y, img_width, img_height)
     c.showPage()
     c.save()
-    for jpg in converted_image_paths:
+    for jpg, _ in converted_images:
         try:
             os.remove(jpg)
         except:
@@ -1780,7 +1939,8 @@ def empresas():
     } for row in cur.fetchall()]
     cur.close()
     conn.close()
-    return render_template('empresas.html', empresas=empresas)
+    return render_template('empresas.html', empresas=empresas, now=datetime.now().date())
+
 
 @app.route('/configuracoes/empresas/excluir/<int:id>', methods=['DELETE'])
 @login_required
@@ -2908,3 +3068,150 @@ def excluir_auto_texto():
 def meus_auto_textos():
     auto_textos = AutoTexto.query.filter_by(user_pk=current_user.pk).all()
     return jsonify([at.to_dict() for at in auto_textos])
+
+@app.route('/configuracoes/lixeira')
+@login_required
+@permission_required('acessar_lixeira')
+def lixeira():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        # Query sugerida pelo usuário com JOIN para evitar cross join acidental
+        cur.execute("""
+            SELECT ps.pk, pp.pat_id, pp.pat_id_issuer, pp.pat_name, ps.accession_no, ps.study_iuid, ps.pk as study_pk, pp.pk as patient_pk
+            FROM priv_study ps
+            JOIN priv_patient pp ON ps.patient_fk = pp.pk
+            ORDER BY ps.pk DESC
+        """)
+        items = cur.fetchall()
+        return render_template('lixeira.html', items=items)
+    except Exception as e:
+        print(f"Erro ao carregar lixeira: {e}")
+        return render_template('lixeira.html', items=[], error=str(e))
+    finally:
+        cur.close()
+        conn.close()
+
+@app.route('/configuracoes/lixeira/restaurar/<int:study_pk>', methods=['POST'])
+@login_required
+@permission_required('acessar_lixeira')
+def restaurar_estudo(study_pk):
+    # Canal na porta 8086 endpoint restaurar-estudo
+    mirth_url = f'http://10.2.0.10:8086/restaurar-estudo?study_pk={study_pk}'
+    
+    try:
+        auth = (app.config['MIRTH_AUTH_USER'], app.config['MIRTH_AUTH_PASSWORD'])
+        response = requests.get(mirth_url, auth=auth, timeout=30)
+        
+        if response.status_code in [200, 201]:
+            return jsonify({
+                'success': True, 
+                'message': f'Estudo {study_pk} restaurado com sucesso pelo Mirth.'
+            })
+        else:
+            return jsonify({
+                'success': False, 
+                'message': f'Erro no Mirth ({response.status_code}): {response.text}'
+            })
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erro de conexão ao Mirth: {str(e)}'})
+
+# @app.route('/configuracoes/lixeira/apagar/<int:study_pk>', methods=['DELETE'])
+# @login_required
+# @permission_required('acessar_lixeira')
+# def apagar_estudo_lixeira(study_pk):
+#     conn = get_db_connection()
+#     cur = conn.cursor()
+#     try:
+#         cur.execute("SELECT patient_fk FROM priv_study WHERE pk = %s", (study_pk,))
+#         res = cur.fetchone()
+#         if not res:
+#             return jsonify({'success': False, 'message': 'Estudo não encontrado na lixeira.'})
+        
+#         patient_fk = res[0]
+
+#         cur.execute("DELETE FROM priv_file WHERE instance_fk IN (SELECT i.pk FROM priv_instance i JOIN priv_series s ON i.series_fk = s.pk WHERE s.study_fk = %s)", (study_pk,))
+#         cur.execute("DELETE FROM priv_instance WHERE series_fk IN (SELECT pk FROM priv_series WHERE study_fk = %s)", (study_pk,))
+#         cur.execute("DELETE FROM priv_series WHERE study_fk = %s", (study_pk,))
+#         cur.execute("DELETE FROM priv_study WHERE pk = %s", (study_pk,))
+
+#         cur.execute("SELECT COUNT(*) FROM priv_study WHERE patient_fk = %s", (patient_fk,))
+#         if cur.fetchone()[0] == 0:
+#             cur.execute("DELETE FROM priv_patient WHERE pk = %s", (patient_fk,))
+
+#         conn.commit()
+#         return jsonify({'success': True, 'message': 'Registro removido permanentemente do banco de dados.'})
+#     except Exception as e:
+#         conn.rollback()
+#         return jsonify({'success': False, 'message': str(e)})
+#     finally:
+#         cur.close()
+#         conn.close()
+
+@app.route('/configuracoes/lixeira/mirth/limpar', methods=['POST'])
+@login_required
+@permission_required('acessar_lixeira')
+def disparar_limpeza_mirth():
+    mirth_url = 'http://10.2.0.10:8082/limpar-lixeira'
+    try:
+        auth = (app.config['MIRTH_AUTH_USER'], app.config['MIRTH_AUTH_PASSWORD'])
+        response = requests.get(mirth_url, auth=auth, timeout=15)
+        if response.status_code in [200, 201]:
+            return jsonify({
+                'success': True, 
+                'message': 'Canal de limpeza acionado com sucesso. O Mirth processará os arquivos em segundo plano.'
+            })
+        else:
+            return jsonify({
+                'success': False, 
+                'message': f'O Mirth retornou um erro ({response.status_code}): {response.text}'
+            })
+    except requests.exceptions.RequestException as e:
+        return jsonify({'success': False, 'message': f'Erro de conexão ao Mirth: {str(e)}'})
+
+@app.route('/configuracoes/lixeira/mirth/deletar/<study_iuid>', methods=['POST'])
+@login_required
+@permission_required('acessar_lixeira')
+def deletar_estudo_mirth(study_iuid):
+    mirth_url = f'http://10.2.0.10:8084/deletar-estudo?study_iuid={study_iuid}'
+    try:
+        auth = (app.config['MIRTH_AUTH_USER'], app.config['MIRTH_AUTH_PASSWORD'])
+        response = requests.get(mirth_url, auth=auth, timeout=15)
+        if response.status_code in [200, 201]:
+            return jsonify({
+                'success': True, 
+                'message': f'Estudo {study_iuid} movido para a lixeira com sucesso.'
+            })
+        else:
+            return jsonify({
+                'success': False, 
+                'message': f'Erro no Mirth ({response.status_code}): {response.text}'
+            })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erro de conexão: {str(e)}'})
+
+# Alteramos o parâmetro da rota para receber o PK (inteiro)
+@app.route('/configuracoes/lixeira/mirth/exterminar/<int:study_pk>', methods=['POST'])
+@login_required
+@permission_required('excluir_permanente')
+def exterminar_estudo_hd(study_pk):
+    # Agora enviamos o parâmetro correto para o Mirth: study_pk
+    mirth_url = f'http://10.2.0.10:8087/deletar-estudo?study_pk={study_pk}'
+    
+    try:
+        auth = (app.config['MIRTH_AUTH_USER'], app.config['MIRTH_AUTH_PASSWORD'])
+        response = requests.get(mirth_url, auth=auth, timeout=15)
+        
+        if response.status_code in [200, 201]:
+            return jsonify({
+                'success': True, 
+                'message': f'Estudo PK {study_pk} removido permanentemente do HD.'
+            })
+        else:
+            return jsonify({
+                'success': False, 
+                'message': f'Erro no Mirth ({response.status_code}): {response.text}'
+            })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})

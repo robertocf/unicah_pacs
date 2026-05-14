@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+{% block title %}Lixeira{% endblock %}
+{% block content %}
+<div class="container-fluid mt-4 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0 text-primary"><i class="fas fa-trash-alt me-2"></i>Lixeira</h2>
+            <p class="text-muted small mb-0">Gerencie estudos de pacientes removidos. Você pode restaurá-los ou excluí-los permanentemente.</p>
+        </div>
+        <button class="btn btn-outline-danger btn-lg shadow-sm" onclick="dispararLimpeza()">
+            <i class="fas fa-broom me-2"></i>Limpar Lixeira
+        </button>
+    </div>
+
+    <div id="alertContainer"></div>
+
+    <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="trashTable">
+                    <thead class="bg-light text-secondary small text-uppercase fw-bold">
+                        <tr>
+                            <th class="ps-3" style="width: 5%;">ID</th>
+                            <th style="width: 10%;">ID Paciente</th>
+                            <th style="width: 10%;">Emissor</th>
+                            <th style="width: 25%;">Nome do Paciente</th>
+                            <th style="width: 15%;">Acessão</th>
+                            <th style="width: 20%;">Study UID</th>
+                            <th class="text-center pe-3" style="width: 15%;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if items %}
+                            {% for item in items %}
+                             <tr id="row-{{ item[6] }}">
+                                <td class="ps-3 fw-medium text-muted small">{{ item[0] }}</td>
+                                <td class="fw-medium">{{ item[1] }}</td>
+                                <td>{{ item[2] or '-' }}</td>
+                                <td class="fw-bold text-truncate" style="max-width: 180px;" title="{{ item[3] }}">{{ item[3] }}</td>
+                                <td>{{ item[4] or '-' }}</td>
+                                <td class="text-truncate small" style="max-width: 150px;" title="{{ item[5] }}">{{ item[5] }}</td>
+                                <td class="text-center pe-3">
+                                    <div class="btn-group shadow-sm">
+                                        <button class="btn btn-sm btn-success px-3" onclick="restaurarRegistro('{{ item[6] }}')" title="Restaurar Estudo">
+                                            <i class="fas fa-undo me-1"></i> Restaurar
+                                        </button>
+                                        <button class="btn btn-sm btn-danger px-3" onclick="confirmarExterminio('{{ item[6] }}', '{{ item[5] }}')" title="Apagar permanentemente do HD e do Banco">
+                                            <i class="fas fa-hdd me-1"></i> Limpar HD
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-5">
+                                    <div class="text-muted">
+                                        <i class="fas fa-inbox fa-3x mb-3 opacity-25"></i>
+                                        <p class="mb-0">A lixeira está vazia.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmação Individual -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-danger">Confirmação de Exclusão</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body pb-0">
+                <p>Tem certeza que deseja apagar este registro permanentemente do disco? Esta ação <strong>não pode ser desfeita</strong>.</p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="btnConfirmDelete">Apagar Permanentemente</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Limpeza em Massa -->
+<div class="modal fade" id="clearTrashModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-warning">Limpeza Total da Lixeira</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body pb-0">
+                <p>Deseja realmente iniciar o processo de limpeza física de <strong>todos</strong> os arquivos da lixeira? Esta ação acionará o serviço do Mirth para apagar os arquivos do disco definitivamente.</p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning fw-bold" id="btnConfirmClearTrash">Sim, Limpar Tudo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Restauração -->
+<div class="modal fade" id="restoreModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem;">
+            <div class="modal-header border-0 pb-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold text-success d-flex align-items-center">
+                    <i class="fas fa-undo-alt me-2"></i> Restaurar Estudo
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4 px-4">
+                <p class="text-secondary mb-0" style="font-size: 0.95rem;">
+                    Deseja realmente restaurar este estudo para a lista principal? O registro voltará a ficar disponível para visualização e laudo imediatamente.
+                </p>
+            </div>
+            <div class="modal-footer border-0 pb-4 px-4">
+                <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal" style="border-radius: 0.5rem; font-weight: 500;">Cancelar</button>
+                <button type="button" class="btn btn-success fw-bold px-4 shadow-sm" id="btnConfirmRestore" style="border-radius: 0.5rem;">Sim, Restaurar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let studyToDelete = { pk: null, iuid: null };
+    let studyToRestore = null;
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    const clearTrashModal = new bootstrap.Modal(document.getElementById('clearTrashModal'));
+    const restoreModal = new bootstrap.Modal(document.getElementById('restoreModal'));
+
+    function mostrarAlerta(mensagem, tipo) {
+        const container = document.getElementById('alertContainer');
+        container.innerHTML = `
+            <div class="alert alert-${tipo} alert-dismissible fade show shadow-sm" role="alert">
+                ${mensagem}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        setTimeout(() => {
+            const alert = container.querySelector('.alert');
+            if (alert) {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }
+        }, 5000);
+    }
+
+    function restaurarRegistro(studyPk) {
+        studyToRestore = studyPk;
+        restoreModal.show();
+    }
+
+    document.getElementById('btnConfirmRestore').addEventListener('click', function() {
+        if (!studyToRestore) return;
+
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Restaurando...';
+
+        fetch(`/configuracoes/lixeira/restaurar/${studyToRestore}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    mostrarAlerta(data.message, 'success');
+                    document.getElementById(`row-${studyToRestore}`).remove();
+                    restoreModal.hide();
+                    if (document.querySelectorAll('#trashTable tbody tr').length === 0) {
+                        location.reload();
+                    }
+                } else {
+                    mostrarAlerta('Erro ao restaurar: ' + data.message, 'danger');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Sim, Restaurar';
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro de conexão ao restaurar', 'danger');
+                btn.disabled = false;
+                btn.innerHTML = 'Sim, Restaurar';
+            })
+            .finally(() => {
+                studyToRestore = null;
+            });
+    });
+
+    function confirmarExclusao(studyPk) {
+        studyToDelete = { pk: studyPk, iuid: null };
+        deleteModal.show();
+    }
+
+    // Aberta pelo botão Limpar HD
+    function confirmarExterminio(studyPk, studyIuid) {
+        studyToDelete = { pk: studyPk, iuid: studyIuid };
+        deleteModal.show();
+    }
+
+    document.getElementById('btnConfirmDelete').addEventListener('click', function() {
+        if (!studyToDelete.pk) return;
+
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processando...';
+
+        if (studyToDelete.iuid) {
+            // Logica de Exterminio (Mirth + DB)
+            mostrarAlerta('Iniciando remoção física dos arquivos...', 'info');
+            
+            fetch(`/configuracoes/lixeira/mirth/exterminar/${studyToDelete.pk}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // mostrarAlerta('Arquivos removidos do HD. Removendo registro do banco...', 'info');
+                        // return fetch(`/configuracoes/lixeira/apagar/${studyToDelete.pk}`);
+                        
+                        mostrarAlerta('Estudo deletado com sucesso!', 'success');
+                        document.getElementById(`row-${studyToDelete.pk}`).remove();
+                        deleteModal.hide();
+                        if (document.querySelectorAll('#trashTable tbody tr').length === 0) {
+                            setTimeout(() => location.reload(), 2000);
+                        }
+                    } else {
+                        throw new Error(data.message || 'Erro no serviço Mirth');
+                    }
+                })
+                /* 
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        mostrarAlerta('Estudo exterminado com sucesso!', 'success');
+                        document.getElementById(`row-${studyToDelete.pk}`).remove();
+                        deleteModal.hide();
+                        if (document.querySelectorAll('#trashTable tbody tr').length === 0) {
+                            setTimeout(() => location.reload(), 2000);
+                        }
+                    } else {
+                        mostrarAlerta('Arquivos removidos, mas erro ao apagar registro: ' + data.message, 'warning');
+                    }
+                })
+                */
+                .catch(error => {
+                    console.error('Erro:', error);
+                    mostrarAlerta('Erro no processo de exterminação: ' + error.message, 'danger');
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Apagar Permanentemente';
+                    studyToDelete = { pk: null, iuid: null };
+                });
+        } else {
+            // Logica Simples (Somente DB) - COMENTADA pois a rota foi removida
+            mostrarAlerta('Ação não disponível: A rota de exclusão direta do banco foi desativada.', 'warning');
+            btn.disabled = false;
+            btn.innerHTML = 'Apagar Permanentemente';
+            /*
+            fetch(`/configuracoes/lixeira/apagar/${studyToDelete.pk}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        mostrarAlerta(data.message, 'success');
+                        document.getElementById(`row-${studyToDelete.pk}`).remove();
+                        deleteModal.hide();
+                        if (document.querySelectorAll('#trashTable tbody tr').length === 0) {
+                            location.reload();
+                        }
+                    } else {
+                        mostrarAlerta('Erro ao apagar: ' + data.message, 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    mostrarAlerta('Erro de conexão ao apagar', 'danger');
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Apagar Permanentemente';
+                    studyToDelete = { pk: null, iuid: null };
+                });
+            */
+        }
+    });
+
+    function dispararLimpeza() {
+        clearTrashModal.show();
+    }
+
+    document.getElementById('btnConfirmClearTrash').addEventListener('click', function() {
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processando...';
+
+        fetch('/configuracoes/lixeira/mirth/limpar', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    mostrarAlerta(data.message, 'success');
+                    clearTrashModal.hide();
+                    setTimeout(() => {
+                        location.reload();
+                    }, 2000);
+                } else {
+                    mostrarAlerta('Erro ao disparar limpeza: ' + data.message, 'danger');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Sim, Limpar Tudo';
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro de conexão ao tentar acionar o serviço de limpeza.', 'danger');
+                btn.disabled = false;
+                btn.innerHTML = 'Sim, Limpar Tudo';
+            });
+    });
+</script>
+<style>
+    #trashTable { table-layout: fixed; width: 100%; }
+    #trashTable th { font-size: 0.7rem; letter-spacing: 0.05em; padding-top: 0.75rem; padding-bottom: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #trashTable td { font-size: 0.8rem; padding-top: 0.4rem; padding-bottom: 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .btn-group .btn { border-radius: 0.5rem !important; margin: 0 1px; padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+    .card { border-radius: 1rem; overflow: hidden; }
+</style>
+{% endblock %}

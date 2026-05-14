@@ -56,6 +56,9 @@ def get_user_permissions(user):
             'acessar_auto_texto': True,
             'ver_todos_estudos': True,
             'resetar_laudo': True,
+            'acessar_lixeira': True,
+            'excluir_permanente': True,
+            'configurar_sistema': True,
         }
     
     # Padrão para outros (Médico, Técnico, etc) enquanto não configurado via UI
@@ -111,4 +114,7 @@ def list_permission_definitions():
         {'key': 'acessar_auto_texto', 'label': 'Auto texto'},
         {'key': 'ver_todos_estudos', 'label': 'Ver todos os estudos'},
         {'key': 'resetar_laudo', 'label': 'Resetar laudo'},
+        {'key': 'acessar_lixeira', 'label': 'Acessar Lixeira'},
+        {'key': 'excluir_permanente', 'label': 'Excluir Permanente (HDS/PACS)'},
+        {'key': 'configurar_sistema', 'label': 'Configurações do Sistema'},
     ]

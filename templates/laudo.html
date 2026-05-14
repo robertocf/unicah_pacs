@@ -399,7 +399,7 @@
       .then(response => response.json())
       .then(data => {
         if (data.study_iuid) {
-          const url = `http://localhost:3000/viewer?StudyInstanceUIDs=${data.study_iuid}&token=${data.token}`;
+          const url = `http://10.120.2.15:3000/viewer?StudyInstanceUIDs=${data.study_iuid}&token=${data.token}`;
           window.open(url, '_blank');
         } else {
           alert('Erro ao obter o Study IUID');

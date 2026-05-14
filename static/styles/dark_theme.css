@@ -1,14 +1,14 @@
 /* Dark Theme Variables */
 [data-theme="dark"] {
-    --bg-body: #121212;
-    --bg-content: #1e1e1e;
+    --bg-body: #0E0E1A;
+    --bg-content: #151525;
     --text-primary: #e0e0e0;
     --text-secondary: #adb5bd;
-    --border-color: #444;
-    --bg-input: #2d2d2d;
-    --bg-hover: #333;
-    --bg-card: #1e1e1e;
-    --bg-header: #2d2d2d;
+    --border-color: #2d2d4d;
+    --bg-input: #1a1a2e;
+    --bg-hover: #22223b;
+    --bg-card: #151525;
+    --bg-header: #1c1c2e;
     --link-color: #6ea8fe;
 }
 
@@ -43,11 +43,11 @@
     --bs-table-color: var(--text-primary);
     --bs-table-bg: var(--bg-content);
     --bs-table-border-color: var(--border-color);
-    --bs-table-striped-bg: #2c2c2c;
+    --bs-table-striped-bg: #1c1c38;
     --bs-table-striped-color: var(--text-primary);
-    --bs-table-active-bg: #373737;
+    --bs-table-active-bg: #25254d;
     --bs-table-active-color: var(--text-primary);
-    --bs-table-hover-bg: #323232;
+    --bs-table-hover-bg: #212140;
     --bs-table-hover-color: var(--text-primary);
 }
 
@@ -150,11 +150,11 @@
 
 /* Specific Study Page Overrides */
 [data-theme="dark"] .expanded-row {
-    background-color: #252525 !important;
+    background-color: #1a1a35 !important;
 }
 
 [data-theme="dark"] .expanded-row td {
-    background-color: #252525 !important;
+    background-color: #1a1a35 !important;
 }
 
 [data-theme="dark"] .row-activated {

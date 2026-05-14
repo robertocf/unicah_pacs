@@ -1,135 +1,205 @@
 {% extends "base.html" %}
-{% block title %}Permissões{% endblock %}
+{% block title %}PACS Unicah - Permissões por Grupo{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Estilo simples para seleção de grupo */
+    .role-header {
+        background: var(--card-bg, #fff);
+        padding: 1.25rem;
+        border-radius: 10px;
+        border: 1px solid var(--border-color, #e9ecef);
+        margin-bottom: 1.5rem;
+    }
+
+    /* Ajuste para o checkbox na tabela */
+    .perm-check-cell {
+        width: 60px;
+        text-align: center;
+    }
+    
+    .form-check-input {
+        cursor: pointer;
+        width: 1.2rem;
+        height: 1.2rem;
+    }
+
+    .btn-premium {
+        background: linear-gradient(135deg, #0d6efd, #0047c8);
+        color: #fff !important;
+        border: none;
+        font-weight: 600;
+        padding: 0.5rem 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(13,110,253,0.3);
+        transition: all 0.2s ease;
+    }
+    .btn-premium:hover:not(:disabled) {
+        transform: translateY(-1px);
+        filter: brightness(1.1);
+    }
+    .btn-premium:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-  <h2 class="mb-3">Permissões por Grupo</h2>
-  <div id="alertContainer"></div>
+<div class="content-wrapper">
+    <div class="container-fluid mt-3">
+        <div class="row">
+            <div class="col-12 main-content">
+                
+                <h5 class="mb-3">Configuração de Permissões</h5>
 
-  <div class="row mb-3">
-    <div class="col-md-6">
-      <label for="grupoSelect" class="form-label">Grupo</label>
-      <select id="grupoSelect" class="form-select" onchange="carregarPermissoes()">
-        <option value="">Selecione um grupo...</option>
-        {% for g in roles %}
-        <option value="{{ g }}">{{ g }}</option>
-        {% endfor %}
-      </select>
-    </div>
-  </div>
+                <!-- Filtro de Grupo -->
+                <div class="role-header">
+                    <div class="row align-items-end">
+                        <div class="col-md-4">
+                            <label for="grupoSelect" class="form-label fw-bold">Selecione o Grupo / Perfil</label>
+                            <select id="grupoSelect" class="form-select" onchange="carregarPermissoes()">
+                                <option value="">Escolha um grupo...</option>
+                                {% for g in roles %}
+                                <option value="{{ g }}">{{ g }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-8 text-end">
+                            <button id="btnSalvar" class="btn btn-premium" onclick="salvarPermissoes()" disabled>
+                                <i class="fas fa-save me-2"></i>Salvar Alterações
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
-  <div class="card">
-    <div class="card-header">Permissões disponíveis</div>
-    <div class="card-body">
-      <div class="row" id="permissionList">
-        {% for p in permission_defs %}
-        <div class="col-md-4 mb-2">
-          <div class="form-check">
-            <input class="form-check-input perm-checkbox" type="checkbox" id="perm_{{ p.key }}"
-              data-perm-key="{{ p.key }}">
-            <label class="form-check-label" for="perm_{{ p.key }}">{{ p.label }}</label>
-          </div>
+                <div id="alertContainer"></div>
+
+                <!-- Tabela de Permissões -->
+                <div class="table-container" id="containerTabela" style="display: none;">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th class="perm-check-cell">Ativo</th>
+                                <th>Nome da Permissão</th>
+                                <th>Chave (ID)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="listaPermissoes">
+                            {% for p in permission_defs %}
+                            <tr>
+                                <td class="perm-check-cell">
+                                    <input class="form-check-input perm-checkbox" type="checkbox" 
+                                           id="perm_{{ p.key }}" data-perm-key="{{ p.key }}">
+                                </td>
+                                <td><label for="perm_{{ p.key }}" class="w-100 cursor-pointer">{{ p.label }}</label></td>
+                                <td class="text-muted" style="font-size: 0.85rem;">{{ p.key }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Placeholder quando nada selecionado -->
+                <div id="placeholderSelect" class="text-center py-5 text-muted">
+                    <i class="fas fa-users fa-3x mb-3"></i>
+                    <p>Selecione um grupo no menu acima para gerenciar suas permissões.</p>
+                </div>
+
+            </div>
         </div>
-        {% endfor %}
-      </div>
     </div>
-  </div>
-
-  <div class="mt-3">
-    <button id="btnSalvar" class="btn btn-primary" onclick="salvarPermissoes()" disabled>Salvar Permissões</button>
-  </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-  function carregarPermissoes() {
-    const role = document.getElementById('grupoSelect').value;
-    const btnSalvar = document.getElementById('btnSalvar');
-    const checkboxes = document.querySelectorAll('.perm-checkbox');
+    function carregarPermissoes() {
+        const role = document.getElementById('grupoSelect').value;
+        const btnSalvar = document.getElementById('btnSalvar');
+        const containerTabela = document.getElementById('containerTabela');
+        const placeholder = document.getElementById('placeholderSelect');
+        const checkboxes = document.querySelectorAll('.perm-checkbox');
 
-    // Reset checkboxes
-    checkboxes.forEach(cb => cb.checked = false);
+        // Reset
+        checkboxes.forEach(cb => cb.checked = false);
 
-    if (!role) {
-      btnSalvar.disabled = true;
-      return;
+        if (!role) {
+            btnSalvar.disabled = true;
+            containerTabela.style.display = 'none';
+            placeholder.style.display = 'block';
+            return;
+        }
+
+        btnSalvar.disabled = false;
+        containerTabela.style.display = 'block';
+        placeholder.style.display = 'none';
+
+        fetch(`/configuracoes/permissoes/buscar/${role}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    data.permissions.forEach(key => {
+                        const cb = document.getElementById(`perm_${key}`);
+                        if (cb) cb.checked = true;
+                    });
+                } else {
+                    mostrarAlerta('Erro ao carregar permissões: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro ao conectar com o servidor', 'danger');
+            });
     }
 
-    btnSalvar.disabled = false;
+    function salvarPermissoes() {
+        const role = document.getElementById('grupoSelect').value;
+        if (!role) return;
 
-    fetch(`/configuracoes/permissoes/buscar/${role}`)
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          data.permissions.forEach(key => {
-            const cb = document.getElementById(`perm_${key}`);
-            if (cb) cb.checked = true;
-          });
-        } else {
-          mostrarAlerta('Erro ao carregar permissões: ' + data.message, 'danger');
-        }
-      })
-      .catch(error => {
-        console.error('Erro:', error);
-        mostrarAlerta('Erro de conexão ao buscar permissões', 'danger');
-      });
-  }
+        const checkboxes = document.querySelectorAll('.perm-checkbox:checked');
+        const permissions = Array.from(checkboxes).map(cb => cb.getAttribute('data-perm-key'));
 
-  function salvarPermissoes() {
-    const role = document.getElementById('grupoSelect').value;
-    if (!role) return;
+        const btnSalvar = document.getElementById('btnSalvar');
+        btnSalvar.disabled = true;
+        const originalText = btnSalvar.innerHTML;
+        btnSalvar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Salvando...';
 
-    const checkboxes = document.querySelectorAll('.perm-checkbox:checked');
-    const permissions = Array.from(checkboxes).map(cb => cb.getAttribute('data-perm-key'));
+        fetch('/configuracoes/permissoes/salvar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role, permissions })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                mostrarAlerta('Permissões atualizadas com sucesso!', 'success');
+            } else {
+                mostrarAlerta('Erro ao salvar permissões: ' + data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            mostrarAlerta('Falha na comunicação com o servidor', 'danger');
+        })
+        .finally(() => {
+            btnSalvar.disabled = false;
+            btnSalvar.innerHTML = originalText;
+        });
+    }
 
-    const btnSalvar = document.getElementById('btnSalvar');
-    btnSalvar.disabled = true;
-    btnSalvar.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salvando...';
-
-    fetch('/configuracoes/permissoes/salvar', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        role: role,
-        permissions: permissions
-      })
-    })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          mostrarAlerta('Permissões salvas com sucesso!', 'success');
-        } else {
-          mostrarAlerta('Erro ao salvar: ' + data.message, 'danger');
-        }
-      })
-      .catch(error => {
-        console.error('Erro:', error);
-        mostrarAlerta('Erro de conexão ao salvar', 'danger');
-      })
-      .finally(() => {
-        btnSalvar.disabled = false;
-        btnSalvar.textContent = 'Salvar Permissões';
-      });
-  }
-
-  function mostrarAlerta(mensagem, tipo) {
-    const container = document.getElementById('alertContainer');
-    container.innerHTML = `
+    function mostrarAlerta(mensagem, tipo) {
+        const container = document.getElementById('alertContainer');
+        container.innerHTML = `
             <div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
                 ${mensagem}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         `;
-    // Auto remove alert after 5 seconds
-    setTimeout(() => {
-      const alert = container.querySelector('.alert');
-      if (alert) {
-        const bsAlert = new bootstrap.Alert(alert);
-        bsAlert.close();
-      }
-    }, 5000);
-  }
+        setTimeout(() => {
+            const alert = container.querySelector('.alert');
+            if (alert) bootstrap.Alert.getOrCreateInstance(alert).close();
+        }, 5000);
+    }
 </script>
 {% endblock %}

@@ -7,165 +7,635 @@
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <h2 class="mb-4 text-center">Selecionar Imagens para Impressão</h2>
+<div class="si-wrapper">
 
-    <form method="POST" action="{{ url_for('generate_selected_pdf', study_uid=study_uid) }}">
-        <div class="mb-4 text-center">
-            <button type="button" class="btn btn-outline-secondary" id="btn-toggle-all">Selecionar Tudo</button>
+    <!-- ═══════════════ PAINEL ESQUERDO — Thumbnails ═══════════════ -->
+    <aside class="si-left" id="si-left">
+        <div class="si-left-header">
+            <span class="si-left-title">
+                <i class="fas fa-images me-2"></i>Imagens do Estudo
+            </span>
+            <span class="si-left-count" id="img-count">0 imagens</span>
         </div>
-        <div class="mb-4 text-center">
-            <label for="layout" class="form-label d-block">Layout de Impressão:</label>
-            <select class="form-select w-auto d-inline-block mb-3" id="layout" name="layout">
-                <option value="2x3" selected>3 linhas x 2 colunas (6 por página)</option>
-                <option value="1x1">1 linha x 1 coluna (1 por página)</option>
-                <option value="2x2">2 linhas x 2 colunas (4 por página)</option>
-            </select>
 
-            <label class="form-label d-block">Tema Especial:</label>
-            <div class="btn-group" role="group" aria-label="Seleção de Tema">
-                <input type="radio" class="btn-check" name="gender" id="gender-none" value="" checked>
-                <label class="btn btn-outline-secondary" for="gender-none">Padrão</label>
+        <div class="si-thumb-grid" id="thumb-grid">
+            {% for path in dicom_files %}
+            <div class="si-thumb-card"
+                 draggable="true"
+                 data-path="{{ path }}"
+                 data-study-uid="{{ study_uid }}"
+                 data-index="{{ loop.index }}"
+                 id="thumb-card-{{ loop.index }}">
+                <div class="si-thumb-img-wrap">
+                    <img src="" alt="Imagem {{ loop.index }}"
+                         class="si-thumb-img loading"
+                         data-path="{{ path }}"
+                         data-study-uid="{{ study_uid }}"
+                         data-index="{{ loop.index }}"
+                         draggable="false">
+                    <div class="si-thumb-spinner"></div>
+                </div>
+                <span class="si-thumb-label">#{{ loop.index }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </aside>
 
-                <input type="radio" class="btn-check" name="gender" id="gender-boy" value="boy">
-                <label class="btn btn-outline-primary" for="gender-boy"><i class="fas fa-mars me-1"></i>Menino</label>
+    <!-- ═══════════════ CENTRO — Simulação A4 ═══════════════ -->
+    <main class="si-center">
+        <div class="si-center-header">
+            <span class="si-center-title">
+                <i class="fas fa-print me-2"></i>Layout de Impressão
+            </span>
+            {% if patient %}
+            <div class="si-patient-card">
+                <div class="si-patient-row">
+                    <span class="si-patient-item">
+                        <i class="fas fa-id-badge"></i>
+                        <strong>ID:</strong> {{ patient.id }}
+                    </span>
+                    <span class="si-patient-item si-patient-name">
+                        <i class="fas fa-user"></i>
+                        <strong>Paciente:</strong> {{ patient.name }}
+                    </span>
+                    <span class="si-patient-item">
+                        <i class="fas fa-venus-mars"></i>
+                        <strong>Sexo:</strong> {{ patient.sex }}
+                    </span>
+                </div>
+                <div class="si-patient-row">
+                    <span class="si-patient-item">
+                        <i class="fas fa-birthday-cake"></i>
+                        <strong>Nasc.:</strong> {{ patient.birthdate }}
+                    </span>
+                    <span class="si-patient-item">
+                        <i class="fas fa-hourglass-half"></i>
+                        <strong>Idade:</strong> {{ patient.age }}
+                    </span>
+                    <span class="si-patient-item">
+                        <i class="fas fa-calendar-alt"></i>
+                        <strong>Estudo:</strong> {{ patient.study_date }}
+                    </span>
+                    {% if patient.study_desc %}
+                    <span class="si-patient-item">
+                        <i class="fas fa-stethoscope"></i>
+                        <strong>Exame:</strong> {{ patient.study_desc }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
 
-                <input type="radio" class="btn-check" name="gender" id="gender-girl" value="girl">
-                <label class="btn btn-outline-danger" for="gender-girl"><i class="fas fa-venus me-1"></i>Menina</label>
+        <div class="si-a4-scroll">
+            <!-- slots gerados via JS conforme layout selecionado -->
+        </div>
+    </main>
+
+    <!-- ═══════════════ PAINEL DIREITO — Controles ═══════════════ -->
+    <aside class="si-right">
+        <div class="si-right-header">
+            <i class="fas fa-sliders-h me-2"></i>Controles
+        </div>
+
+        <!-- Layout -->
+        <div class="si-control-group">
+            <label class="si-control-label">Layout de impressão</label>
+            <div class="si-layout-options">
+                <button type="button" class="si-layout-btn active" data-layout="2x3" id="btn-layout-2x3">
+                    <span class="si-layout-icon">
+                        <span></span><span></span>
+                        <span></span><span></span>
+                        <span></span><span></span>
+                    </span>
+                    <span class="si-layout-desc">2×3 <small>(6/pág)</small></span>
+                </button>
+                <button type="button" class="si-layout-btn" data-layout="2x2" id="btn-layout-2x2">
+                    <span class="si-layout-icon layout-2x2">
+                        <span></span><span></span>
+                        <span></span><span></span>
+                    </span>
+                    <span class="si-layout-desc">2×2 <small>(4/pág)</small></span>
+                </button>
+                <button type="button" class="si-layout-btn" data-layout="1x1" id="btn-layout-1x1">
+                    <span class="si-layout-icon layout-1x1">
+                        <span></span>
+                    </span>
+                    <span class="si-layout-desc">1×1 <small>(1/pág)</small></span>
+                </button>
             </div>
         </div>
 
-    <div class="row gx-2 gy-2">
-        {% for path in dicom_files %}
-        <div class="col-md-4 col-sm-6">
-            <div class="image-box">
-                <div class="position-relative image-click-wrapper" data-index="{{ loop.index }}">
-                    <span class="overlay-number"></span>
-                    <img src="" alt="Imagem DICOM" data-path="{{ path }}" data-study-uid="{{ study_uid }}"
-                        class="thumbnail mb-2 img-select" data-index="{{ loop.index }}">
-                </div>
-                <div class="form-check d-none">
-                    <input class="form-check-input checkbox-img" type="checkbox" name="selected_files"
-                        value="{{ path }}" id="checkbox{{ loop.index }}">
-                </div>
+        <!-- Tema -->
+        <div class="si-control-group">
+            <label class="si-control-label">Tema especial</label>
+            <div class="si-theme-options">
+                <button type="button" class="si-theme-btn active" data-gender="">
+                    <i class="fas fa-circle me-1" style="color:#aaa;"></i>Padrão
+                </button>
+                <button type="button" class="si-theme-btn" data-gender="boy">
+                    <i class="fas fa-mars me-1" style="color:#4fa3e0;"></i>Menino
+                </button>
+                <button type="button" class="si-theme-btn" data-gender="girl">
+                    <i class="fas fa-venus me-1" style="color:#e0619a;"></i>Menina
+                </button>
             </div>
         </div>
-        {% endfor %}
-    </div>
 
-        <div class="mt-4 text-center">
-            <button type="submit" class="btn btn-primary btn-lg" id="btn-gerar-pdf">
-                Imprimir com Selecionadas (0)
+        <!-- Resumo -->
+        <div class="si-control-group si-summary">
+            <label class="si-control-label">Resumo</label>
+            <div class="si-summary-row">
+                <span>Slots no layout:</span>
+                <strong id="summary-slots">6</strong>
+            </div>
+            <div class="si-summary-row">
+                <span>Imagens posicionadas:</span>
+                <strong id="summary-placed">0</strong>
+            </div>
+            <div class="si-summary-row">
+                <span>Páginas estimadas:</span>
+                <strong id="summary-pages">1</strong>
+            </div>
+        </div>
+
+        <!-- Ações -->
+        <div class="si-control-group si-actions">
+            <button type="button" class="si-btn-clear" id="btn-clear-all">
+                <i class="fas fa-broom me-1"></i>Limpar Layout
             </button>
-            <a href="{{ url_for('homepage') }}" class="btn btn-secondary btn-lg ms-2">Cancelar</a>
+            <button type="button" class="si-btn-auto" id="btn-auto-fill">
+                <i class="fas fa-magic me-1"></i>Preencher Automaticamente
+            </button>
         </div>
-    </form>
-</div>
 
+        <!-- Botão Imprimir -->
+        <form method="POST" action="{{ url_for('generate_selected_pdf', study_uid=study_uid) }}" id="print-form">
+            <input type="hidden" name="layout" id="hidden-layout" value="2x3">
+            <input type="hidden" name="gender" id="hidden-gender" value="">
+            <!-- selected_files será injetado via JS na ordem dos slots -->
+            <div class="si-print-area">
+                <button type="submit" class="si-btn-print" id="btn-print">
+                    <i class="fas fa-print me-2"></i>
+                    <span id="btn-print-label">Enviar para Impressão</span>
+                </button>
+                <a href="{{ url_for('homepage') }}" class="si-btn-cancel">
+                    <i class="fas fa-times me-1"></i>Cancelar
+                </a>
+            </div>
+        </form>
+    </aside>
+
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const checkboxes = document.querySelectorAll(".checkbox-img");
-        const btn = document.getElementById("btn-gerar-pdf");
-        const toggleBtn = document.getElementById("btn-toggle-all");
-        const imageBoxes = document.querySelectorAll(".image-click-wrapper");
+document.addEventListener("DOMContentLoaded", function () {
 
-        function updateCounter() {
-            const selected = Array.from(checkboxes).filter(cb => cb.checked);
-            btn.textContent = `Imprimir com Selecionadas (${selected.length})`;
+    /* ─── Estado ──────────────────────────────────────────────── */
+    let currentLayout = "2x3";
+    let currentGender = "";
+    let totalPages    = 1;   // número de páginas A4 visíveis
 
-            toggleBtn.textContent = selected.length === checkboxes.length ? "Limpar Seleção" : "Selecionar Tudo";
+    // slotData: chave = índice GLOBAL (página * perPage + posição)
+    // valor = { path, blobUrl, thumbCard }
+    const slotData = {};
 
-            document.querySelectorAll(".image-box").forEach(box => {
-                box.classList.remove("selected");
-                const numberTag = box.querySelector(".overlay-number");
-                if (numberTag) numberTag.textContent = "";
-            });
+    /* ─── Config de layouts ───────────────────────────────────── */
+    const LAYOUTS = {
+        "2x3": { rows: 3, cols: 2, perPage: 6 },
+        "2x2": { rows: 2, cols: 2, perPage: 4 },
+        "1x1": { rows: 1, cols: 1, perPage: 1 },
+    };
 
-            selected.forEach((cb, index) => {
-                const box = cb.closest(".image-box");
-                const numberTag = box.querySelector(".overlay-number");
-                if (box && numberTag) {
-                    box.classList.add("selected");
-                    numberTag.textContent = index + 1;
-                }
-            });
+    /* ─── Elementos fixos ─────────────────────────────────────── */
+    const a4Scroll      = document.querySelector(".si-a4-scroll");
+    const thumbCards    = document.querySelectorAll(".si-thumb-card");
+    const imgCount      = document.getElementById("img-count");
+    const summarySlots  = document.getElementById("summary-slots");
+    const summaryPlaced = document.getElementById("summary-placed");
+    const summaryPages  = document.getElementById("summary-pages");
+    const hiddenLayout  = document.getElementById("hidden-layout");
+    const hiddenGender  = document.getElementById("hidden-gender");
+    const printForm     = document.getElementById("print-form");
+    const btnPrintLabel = document.getElementById("btn-print-label");
+
+    imgCount.textContent = thumbCards.length + " imagens";
+
+    /* ════════════════════════════════════════════════════════════
+       CONSTRUÇÃO DE PÁGINAS
+       ════════════════════════════════════════════════════════════ */
+
+    /** Reconstrói toda a área de scroll com `totalPages` folhas A4. */
+    function buildAllPages() {
+        a4Scroll.innerHTML = "";
+        const { rows, cols, perPage } = LAYOUTS[currentLayout];
+
+        for (let p = 0; p < totalPages; p++) {
+            a4Scroll.appendChild(createPageEl(p, rows, cols, perPage));
         }
 
-        imageBoxes.forEach(wrapper => {
-            wrapper.addEventListener("click", () => {
-                const index = wrapper.dataset.index;
-                const checkbox = document.getElementById(`checkbox${index}`);
-                if (checkbox) {
-                    checkbox.checked = !checkbox.checked;
-                    updateCounter();
-                }
-            });
+        // Re-aplica imagens já posicionadas
+        Object.entries(slotData).forEach(([gIdx, info]) => {
+            const slot = a4Scroll.querySelector(`[data-gslot="${gIdx}"]`);
+            if (slot) placeImageInSlot(slot, info.path, info.blobUrl, info.thumbCard, parseInt(gIdx));
         });
 
-        checkboxes.forEach(cb => cb.addEventListener("change", updateCounter));
+        updateSummary();
+    }
 
-        if (toggleBtn) {
-            toggleBtn.addEventListener("click", function () {
-                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-                checkboxes.forEach(cb => cb.checked = !allChecked);
-                updateCounter();
-            });
+    /** Cria o wrapper de uma página A4 com seus slots. */
+    function createPageEl(pageIdx, rows, cols, perPage) {
+        const wrap = document.createElement("div");
+        wrap.className    = "si-page-wrap";
+        wrap.dataset.page = pageIdx;
+
+        const lbl = document.createElement("div");
+        lbl.className   = "si-page-label";
+        lbl.textContent = `— Página ${pageIdx + 1} —`;
+
+        const a4 = document.createElement("div");
+        a4.className = "si-a4";
+        a4.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        a4.style.gridTemplateRows    = `repeat(${rows}, 1fr)`;
+
+        for (let i = 0; i < perPage; i++) {
+            const gIdx = pageIdx * perPage + i;
+            const slot = buildEmptySlot(gIdx);
+            a4.appendChild(slot);
         }
 
-        updateCounter();
-        
-        // Carregar imagens de forma segura
-        async function loadSecureImage(img) {
-            const path = img.dataset.path;
-            const studyUid = img.dataset.studyUid;
-            
-            // Adicionar indicador de carregamento
-            img.classList.add('loading');
-            
-            try {
-                const response = await fetch(`/thumbnail?path=${encodeURIComponent(path)}&study_uid=${encodeURIComponent(studyUid)}`, {
-                    method: 'GET',
-                    credentials: 'same-origin'
-                });
-                
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const blobUrl = URL.createObjectURL(blob);
-                    img.src = blobUrl;
-                    
-                    // Remover indicador de carregamento quando a imagem carregar
-                    img.addEventListener('load', () => {
-                        img.classList.remove('loading');
-                        img.dataset.blobUrl = blobUrl;
-                    });
-                } else {
-                    img.classList.remove('loading');
-                    img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkVycm8gYW8gY2FycmVnYXI8L3RleHQ+PC9zdmc+';
-                }
-            } catch (error) {
-                console.error('Erro ao carregar imagem:', error);
-                img.classList.remove('loading');
-                img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkVycm8gYW8gY2FycmVnYXI8L3RleHQ+PC9zdmc+';
-            }
+        wrap.appendChild(lbl);
+        wrap.appendChild(a4);
+        return wrap;
+    }
+
+    /** Cria um slot vazio com drag-drop listeners. */
+    function buildEmptySlot(gIdx) {
+        const slot = document.createElement("div");
+        slot.className      = "si-slot empty";
+        slot.dataset.gslot  = gIdx;
+
+        const ph = document.createElement("div");
+        ph.className = "si-slot-placeholder";
+        ph.innerHTML = `<i class="fas fa-arrow-down"></i><small>Soltar aqui</small>`;
+        slot.appendChild(ph);
+
+        slot.addEventListener("dragover",  onSlotDragOver);
+        slot.addEventListener("dragleave", onSlotDragLeave);
+        slot.addEventListener("drop",      onSlotDrop);
+        return slot;
+    }
+
+    /** Adiciona uma nova página em branco no final. */
+    function addPage() {
+        const { rows, cols, perPage } = LAYOUTS[currentLayout];
+        const pageIdx = totalPages;
+        totalPages++;
+        a4Scroll.appendChild(createPageEl(pageIdx, rows, cols, perPage));
+        updateSummary();
+
+        // Rola até a nova página
+        setTimeout(() => {
+            a4Scroll.lastElementChild.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 80);
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       COLOCAR / REMOVER IMAGENS NOS SLOTS
+       ════════════════════════════════════════════════════════════ */
+
+    function placeImageInSlot(slot, path, blobUrl, thumbCard, gIdx) {
+        if (gIdx === undefined) gIdx = parseInt(slot.dataset.gslot);
+
+        // Libera thumbCard que estava neste slot antes
+        const prev = slotData[gIdx];
+        if (prev && prev.thumbCard && prev.thumbCard !== thumbCard) {
+            prev.thumbCard.classList.remove("si-thumb-used");
         }
-        
-        // Carregar todas as imagens
-        const images = document.querySelectorAll('.thumbnail');
-        images.forEach(img => {
-            loadSecureImage(img);
+
+        slot.innerHTML = "";
+        slot.classList.remove("empty", "drag-over");
+        slot.classList.add("filled");
+
+        const img = document.createElement("img");
+        img.src       = blobUrl || "";
+        img.alt       = path;
+        img.className = "si-slot-img";
+        img.draggable = true;
+
+        const rmBtn = document.createElement("button");
+        rmBtn.type      = "button";
+        rmBtn.className = "si-slot-remove";
+        rmBtn.title     = "Remover imagem";
+        rmBtn.innerHTML = '<i class="fas fa-times"></i>';
+        rmBtn.addEventListener("click", () => removeFromSlot(slot, gIdx));
+
+        // Número do slot (posição dentro da página + 1)
+        const { perPage } = LAYOUTS[currentLayout];
+        const posInPage   = gIdx % perPage;
+        const num = document.createElement("span");
+        num.className   = "si-slot-num";
+        num.textContent = posInPage + 1;
+
+        slot.appendChild(img);
+        slot.appendChild(rmBtn);
+        slot.appendChild(num);
+
+        slotData[gIdx] = { path, blobUrl, thumbCard };
+        if (thumbCard) thumbCard.classList.add("si-thumb-used");
+
+        // Permite arrastar de slot para slot
+        img.addEventListener("dragstart", e => {
+            e.dataTransfer.setData("app/gslot",    gIdx);
+            e.dataTransfer.setData("app/path",     path);
+            e.dataTransfer.setData("app/blob-url", blobUrl || "");
+            e.dataTransfer.setData("app/thumb-id", thumbCard ? thumbCard.id : "");
+            e.dataTransfer.effectAllowed = "move";
         });
-        
-        // Limpar blob URLs quando a página for descarregada
-        window.addEventListener('beforeunload', () => {
-            images.forEach(img => {
-                if (img.dataset.blobUrl) {
-                    URL.revokeObjectURL(img.dataset.blobUrl);
-                }
-            });
+
+        updateSummary();
+        checkAutoAddPage();
+    }
+
+    function removeFromSlot(slot, gIdx) {
+        if (gIdx === undefined) gIdx = parseInt(slot.dataset.gslot);
+        const info = slotData[gIdx];
+        if (info && info.thumbCard) info.thumbCard.classList.remove("si-thumb-used");
+        delete slotData[gIdx];
+
+        slot.innerHTML = "";
+        slot.classList.remove("filled");
+        slot.classList.add("empty");
+
+        const ph = document.createElement("div");
+        ph.className = "si-slot-placeholder";
+        ph.innerHTML = `<i class="fas fa-arrow-down"></i><small>Soltar aqui</small>`;
+        slot.appendChild(ph);
+
+        slot.addEventListener("dragover",  onSlotDragOver);
+        slot.addEventListener("dragleave", onSlotDragLeave);
+        slot.addEventListener("drop",      onSlotDrop);
+
+        updateSummary();
+        checkAutoRemovePage();
+    }
+
+    /**
+     * Se todos os slots da última página estiverem preenchidos
+     * e ainda houver thumbnails livres → adiciona nova página.
+     */
+    function checkAutoAddPage() {
+        const { perPage } = LAYOUTS[currentLayout];
+        const lastPageFirstSlot = (totalPages - 1) * perPage;
+        const allLastFilled = Array.from({ length: perPage }, (_, i) => lastPageFirstSlot + i)
+            .every(gi => slotData[gi]);
+
+        const hasFreeCards = [...thumbCards].some(c => !c.classList.contains("si-thumb-used"));
+
+        if (allLastFilled && hasFreeCards) addPage();
+    }
+
+    /**
+     * Remove a última página se ela estiver completamente vazia
+     * e não for a única página.
+     */
+    function checkAutoRemovePage() {
+        if (totalPages <= 1) return;
+        const { perPage } = LAYOUTS[currentLayout];
+        const lastPageFirstSlot = (totalPages - 1) * perPage;
+        const lastPageEmpty = Array.from({ length: perPage }, (_, i) => lastPageFirstSlot + i)
+            .every(gi => !slotData[gi]);
+
+        if (lastPageEmpty) {
+            totalPages--;
+            const lastWrap = a4Scroll.querySelector(`[data-page="${totalPages}"]`);
+            if (lastWrap) lastWrap.remove();
+            updateSummary();
+        }
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       DRAG-AND-DROP DOS THUMBNAILS
+       ════════════════════════════════════════════════════════════ */
+
+    thumbCards.forEach(card => {
+        card.addEventListener("dragstart", e => {
+            e.dataTransfer.setData("app/path",     card.dataset.path);
+            e.dataTransfer.setData("app/thumb-id", card.id);
+            const img = card.querySelector(".si-thumb-img");
+            e.dataTransfer.setData("app/blob-url", img.dataset.blobUrl || "");
+            e.dataTransfer.effectAllowed = "copy";
+            card.classList.add("dragging");
+        });
+        card.addEventListener("dragend", () => card.classList.remove("dragging"));
+
+        // Duplo-clique: próximo slot vazio (em qualquer página)
+        card.addEventListener("dblclick", () => {
+            if (card.classList.contains("si-thumb-used")) return;
+            const emptySlot = a4Scroll.querySelector(".si-slot.empty");
+            if (!emptySlot) return;
+            const img = card.querySelector(".si-thumb-img");
+            placeImageInSlot(emptySlot, card.dataset.path, img.dataset.blobUrl || "", card);
         });
     });
+
+    /* ─── Eventos de drop nos slots ──────────────────────────── */
+    function onSlotDragOver(e) {
+        e.preventDefault();
+        e.currentTarget.classList.add("drag-over");
+        e.dataTransfer.dropEffect = "copy";
+    }
+    function onSlotDragLeave(e) {
+        e.currentTarget.classList.remove("drag-over");
+    }
+    function onSlotDrop(e) {
+        e.preventDefault();
+        const slot    = e.currentTarget;
+        const destGIdx = parseInt(slot.dataset.gslot);
+        slot.classList.remove("drag-over");
+
+        const path      = e.dataTransfer.getData("app/path");
+        const thumbId   = e.dataTransfer.getData("app/thumb-id");
+        const blobUrl   = e.dataTransfer.getData("app/blob-url");
+        const fromGSlot = e.dataTransfer.getData("app/gslot");
+        const thumbCard = thumbId ? document.getElementById(thumbId) : null;
+
+        // Libera slot de origem (quando arrasta de slot para slot)
+        if (fromGSlot !== "") {
+            const srcGIdx = parseInt(fromGSlot);
+            const srcSlot = a4Scroll.querySelector(`[data-gslot="${srcGIdx}"]`);
+            if (srcSlot && srcSlot !== slot) {
+                delete slotData[srcGIdx];
+                srcSlot.innerHTML = "";
+                srcSlot.classList.remove("filled");
+                srcSlot.classList.add("empty");
+                const ph = document.createElement("div");
+                ph.className = "si-slot-placeholder";
+                ph.innerHTML = `<i class="fas fa-arrow-down"></i><small>Soltar aqui</small>`;
+                srcSlot.appendChild(ph);
+                srcSlot.addEventListener("dragover",  onSlotDragOver);
+                srcSlot.addEventListener("dragleave", onSlotDragLeave);
+                srcSlot.addEventListener("drop",      onSlotDrop);
+            }
+        }
+
+        if (path) placeImageInSlot(slot, path, blobUrl, thumbCard, destGIdx);
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       CONTROLES DO PAINEL DIREITO
+       ════════════════════════════════════════════════════════════ */
+
+    /* ─── Layout ─────────────────────────────────────────────── */
+    document.querySelectorAll(".si-layout-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".si-layout-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            currentLayout     = btn.dataset.layout;
+            hiddenLayout.value = currentLayout;
+            // Limpa tudo ao trocar de layout
+            Object.keys(slotData).forEach(k => delete slotData[k]);
+            thumbCards.forEach(c => c.classList.remove("si-thumb-used"));
+            totalPages = 1;
+            buildAllPages();
+        });
+    });
+
+    /* ─── Tema ───────────────────────────────────────────────── */
+    document.querySelectorAll(".si-theme-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".si-theme-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            currentGender      = btn.dataset.gender;
+            hiddenGender.value = currentGender;
+        });
+    });
+
+    /* ─── Limpar layout ──────────────────────────────────────── */
+    document.getElementById("btn-clear-all").addEventListener("click", () => {
+        // 1. Apaga todos os dados de slot
+        Object.keys(slotData).forEach(k => delete slotData[k]);
+        // 2. Libera todas as thumbnails
+        thumbCards.forEach(c => c.classList.remove("si-thumb-used"));
+        // 3. Volta para 1 página e reconstrói
+        totalPages = 1;
+        buildAllPages();
+    });
+
+    /* ─── Preencher automaticamente ─────────────────────────── */
+    document.getElementById("btn-auto-fill").addEventListener("click", () => {
+        const freeCards = [...thumbCards].filter(c => !c.classList.contains("si-thumb-used"));
+        if (!freeCards.length) return;
+
+        let fi = 0;
+        // Preenche todos os slots vazios existentes
+        a4Scroll.querySelectorAll(".si-slot.empty").forEach(slot => {
+            if (fi >= freeCards.length) return;
+            const card = freeCards[fi++];
+            const img  = card.querySelector(".si-thumb-img");
+            placeImageInSlot(slot, card.dataset.path, img.dataset.blobUrl || "", card);
+        });
+
+        // Se ainda sobram imagens livres, adiciona páginas e preenche
+        while (fi < freeCards.length) {
+            addPage();
+            const newSlots = a4Scroll.querySelectorAll(".si-slot.empty");
+            newSlots.forEach(slot => {
+                if (fi >= freeCards.length) return;
+                const card = freeCards[fi++];
+                const img  = card.querySelector(".si-thumb-img");
+                placeImageInSlot(slot, card.dataset.path, img.dataset.blobUrl || "", card);
+            });
+        }
+    });
+
+    /* ─── Submit ─────────────────────────────────────────────── */
+    printForm.addEventListener("submit", e => {
+        printForm.querySelectorAll("input[name='selected_files']").forEach(el => el.remove());
+        printForm.querySelectorAll("input[name='slot_indices']").forEach(el => el.remove());
+
+        const sortedKeys = Object.keys(slotData).map(Number).sort((a, b) => a - b);
+        sortedKeys.forEach(gIdx => {
+            const inp     = document.createElement("input");
+            inp.type      = "hidden";
+            inp.name      = "selected_files";
+            inp.value     = slotData[gIdx].path;
+            printForm.appendChild(inp);
+
+            const slotInp = document.createElement("input");
+            slotInp.type  = "hidden";
+            slotInp.name  = "slot_indices";
+            slotInp.value = gIdx;
+            printForm.appendChild(slotInp);
+        });
+
+        if (sortedKeys.length === 0) {
+            e.preventDefault();
+            alert("Por favor, posicione pelo menos uma imagem no layout antes de imprimir.");
+        }
+    });
+
+    /* ─── Resumo ─────────────────────────────────────────────── */
+    function updateSummary() {
+        const placed   = Object.keys(slotData).length;
+        const { perPage } = LAYOUTS[currentLayout];
+        summarySlots.textContent  = totalPages * perPage;
+        summaryPlaced.textContent = placed;
+        summaryPages.textContent  = totalPages;
+        btnPrintLabel.textContent = placed > 0
+            ? `Enviar para Impressão (${placed} img / ${totalPages} pág)`
+            : "Enviar para Impressão";
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       CARREGAMENTO SEGURO DAS IMAGENS
+       ════════════════════════════════════════════════════════════ */
+
+    async function loadSecureImage(img, card) {
+        const path     = img.dataset.path;
+        const studyUid = img.dataset.studyUid;
+        try {
+            const response = await fetch(
+                `/thumbnail?path=${encodeURIComponent(path)}&study_uid=${encodeURIComponent(studyUid)}`,
+                { method: "GET", credentials: "same-origin" }
+            );
+            if (response.ok) {
+                const blob    = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                img.src             = blobUrl;
+                img.dataset.blobUrl = blobUrl;
+                img.classList.remove("loading");
+                card.querySelector(".si-thumb-spinner").style.display = "none";
+            } else {
+                imgError(img, card);
+            }
+        } catch {
+            imgError(img, card);
+        }
+    }
+
+    function imgError(img, card) {
+        img.classList.remove("loading");
+        card.querySelector(".si-thumb-spinner").style.display = "none";
+        img.src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWIxYjJlIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzY2NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkVycm88L3RleHQ+PC9zdmc+";
+    }
+
+    thumbCards.forEach(card => {
+        const img = card.querySelector(".si-thumb-img");
+        loadSecureImage(img, card);
+    });
+
+    window.addEventListener("beforeunload", () => {
+        thumbCards.forEach(card => {
+            const img = card.querySelector(".si-thumb-img");
+            if (img.dataset.blobUrl) URL.revokeObjectURL(img.dataset.blobUrl);
+        });
+    });
+
+    /* ─── Inicializar ────────────────────────────────────────── */
+    buildAllPages();
+});
 </script>
 {% endblock %}

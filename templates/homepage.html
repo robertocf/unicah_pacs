@@ -4,6 +4,20 @@
 
 {% block content %}
 <div class="container py-4">
+    {% if system_settings and system_settings.maintenance_mode %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-danger shadow-sm border-0 d-flex align-items-center" role="alert">
+                <i class="fas fa-exclamation-triangle fs-4 me-3"></i>
+                <div>
+                    <h5 class="alert-heading mb-1 fw-bold">Aviso de Manutenção</h5>
+                    <p class="mb-0">{{ system_settings.maintenance_message }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="row g-4">
         <!-- Avisos e Alertas -->
         <div class="col-12 col-lg-6">
@@ -23,11 +37,14 @@
                     <div class="alert {{ bs }} mb-2" role="alert">{{ message }}</div>
                     {% endfor %}
                     {% else %}
+                    {% if system_settings and system_settings.maintenance_mode %}
+                    <div class="alert alert-danger mb-0" role="alert">
+                        <i class="fas fa-tools me-2"></i>
+                        {{ system_settings.maintenance_message }}
+                    </div>
+                    {% else %}
                     <p class="text-muted mb-0">Sem alertas ativos no momento.</p>
-                    <ul class="mb-0">
-                        <!-- <li>Servidor em manutenção 30/10/2025 as 22h.</li> -->
-
-                    </ul>
+                    {% endif %}
                     {% endif %}
                     {% endwith %}
                 </div>
@@ -42,11 +59,12 @@
                     <strong>Atualizações do sistema</strong>
                 </div>
                 <div class="card-body">
-                    <!-- <p class="text-muted mb-0">Sem mudanças e melhorias no nomento.</p>-->
                     <ul class="mb-0">
-                        <li>Adicionado opção de Layout de Laudo.</li>
-                        <li>Adicionado função de modelo de laudo</li>
-                        <li>Adicionado opção de auto-texto</li>
+                        {% for item in improvements %}
+                        <li style="white-space: pre-wrap;">{{ item.content }}</li>
+                        {% else %}
+                        <p class="text-muted mb-0">Sem mudanças e melhorias no momento.</p>
+                        {% endfor %}
                     </ul>
                 </div>
             </div>
@@ -83,11 +101,59 @@
                     <p class="mb-0 text-muted">Para detalhes completos da versão, consulte o documento de notas de
                         versão interno.</p>
                     <ul class="mb-0">
-                        <li>Adicionado novas funcionadades para área médica</li>
+                        {% for note in release_notes %}
+                        <li style="white-space: pre-wrap;">{{ note.content }}</li>
+                        {% else %}
+                        <p class="text-muted mb-0">Sem novas notas de versão.</p>
+                        {% endfor %}
                     </ul>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const improvements = [
+        {% for item in improvements %}
+        { pk: {{ item.pk }}, content: {{ item.content | tojson }}, is_modal: {{ 'true' if item.is_modal else 'false' }} },
+        {% endfor %}
+    ];
+
+    const release_notes = [
+        {% for note in release_notes %}
+        { pk: {{ note.pk }}, content: {{ note.content | tojson }}, is_modal: {{ 'true' if note.is_modal else 'false' }} },
+        {% endfor %}
+    ];
+
+    const allUpdates = [...improvements, ...release_notes];
+    const modalUpdates = allUpdates.filter(u => u.is_modal);
+
+    if (modalUpdates.length > 0) {
+        // Verificar quais atualizações o usuário já viu
+        let seenUpdates = JSON.parse(localStorage.getItem('seen_system_updates') || '[]');
+        
+        // Pegar a mais recente que o usuário ainda não viu
+        const unseenUpdate = modalUpdates.find(u => !seenUpdates.includes(u.pk));
+
+        if (unseenUpdate) {
+            Swal.fire({
+                title: 'Atualização Importante',
+                html: `<div class="text-start py-2" style="white-space: pre-wrap;">${unseenUpdate.content}</div>`,
+                icon: 'info',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#2563eb',
+                allowOutsideClick: false
+            }).then(() => {
+                // Marcar como vista
+                seenUpdates.push(unseenUpdate.pk);
+                localStorage.setItem('seen_system_updates', JSON.stringify(seenUpdates));
+            });
+        }
+    }
+});
+</script>
 {% endblock %}

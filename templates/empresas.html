@@ -1,60 +1,166 @@
 {% extends "base.html" %}
 
-{% block title %}PACS Unicah - Cadastro de Empresas{% endblock %}
+{% block title %}PACS Unicah - Gestão de Empresas{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Botão Nova Empresa */
+    .btn-premium {
+        background: linear-gradient(135deg, #0d6efd, #0047c8);
+        color: #fff !important;
+        border: none;
+        font-weight: 600;
+        padding: 0.5rem 1.25rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(13,110,253,0.4);
+        transition: all 0.2s ease;
+    }
+    .btn-premium:hover {
+        color: #fff !important;
+        filter: brightness(1.1);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(13,110,253,0.5);
+    }
+
+    /* Botões de ação da tabela */
+    .btn-action {
+        width: 34px;
+        height: 34px;
+        border: none;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.8rem;
+        margin: 0 2px;
+    }
+    .btn-edit {
+        background: #eff6ff;
+        color: #2563eb;
+    }
+    .btn-edit:hover {
+        background: #2563eb;
+        color: #fff;
+        transform: translateY(-1px);
+    }
+    .btn-delete {
+        background: #fff1f2;
+        color: #e11d48;
+    }
+    .btn-delete:hover {
+        background: #e11d48;
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    /* Dark theme */
+    [data-theme='dark'] .btn-edit  { background: #1e3a5f; color: #60a5fa; }
+    [data-theme='dark'] .btn-delete { background: #3b1219; color: #f87171; }
+    [data-theme='dark'] .btn-edit:hover  { background: #2563eb; color: #fff; }
+    [data-theme='dark'] .btn-delete:hover { background: #e11d48; color: #fff; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Cadastro de Empresas</h2>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCadastro">
-            <i class="fas fa-plus me-2"></i>Cadastrar Empresa
-        </button>
-    </div>
+<div class="content-wrapper">
+    <div class="container-fluid mt-3">
+        <div class="row">
+            <div class="col-12 main-content">
 
-    <!-- O formulário de cadastro foi movido para o modalCadastro abaixo -->
+                <!-- Cabeçalho -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Gestão de Empresas</h5>
+                    <button class="btn btn-premium" data-bs-toggle="modal" data-bs-target="#modalCadastro">
+                        <i class="fas fa-plus me-2"></i>Nova Empresa
+                    </button>
+                </div>
 
-    <!-- Lista de Empresas -->
-    <div class="card mt-4">
-        <div class="card-header">
-            <h5 class="mb-0">Empresas Cadastradas</h5>
-        </div>
-        <div class="card-body">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th style="width: 5%">ID</th>
-                        <th style="width: 22%">Empresa</th>
-                        <th style="width: 10%">Apresentação</th>
-                        <th style="width: 15%">Email</th>
-                        <th style="width: 12%">CNPJ</th>
-                        <th style="width: 10%">Expiração</th>
-                        <th style="width: 8%">Status</th>
-                        <th style="width: 5%">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for empresa in empresas %}
-                    <tr data-id="{{ empresa.pk }}">
-                        <td>{{ empresa.pk }}</td>
-                        <td>{{ empresa.organization }}</td>
-                        <td>{{ empresa.presentation }}</td>
-                        <td>{{ empresa.email }}</td>
-                        <td>{{ empresa.cnpj }}</td>
-                        <td>{{ empresa.expiration.strftime('%d/%m/%Y') if empresa.expiration else '-' }}</td>
-                        <td>{{ 'Ativo' if empresa.active else 'Inativo' }}</td>
-                        <td>
-                            <button class="btn btn-sm btn-warning" onclick="editarEmpresa('{{ empresa.pk }}')"><i
-                                    class="fas fa-edit"></i></button>
-                            <button class="btn btn-sm btn-danger" onclick="excluirEmpresa('{{ empresa.pk }}')"><i
-                                    class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                <!-- Filtros -->
+                <div class="row g-2 mb-3">
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" id="inputSearch" class="form-control"
+                                   placeholder="Buscar por nome ou CNPJ...">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select id="selectStatus" class="form-select">
+                            <option value="all">Todos os contratos</option>
+                            <option value="ativo">Contratos Ativos</option>
+                            <option value="inativo">Contratos Inativos</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="alert-container" class="mb-2"></div>
+
+                <!-- Tabela -->
+                <div class="table-container">
+                    <table class="table table-striped table-hover" id="tableEmpresas">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Empresa / Organização</th>
+                                <th>CNPJ</th>
+                                <th>Email de Contato</th>
+                                <th>Vencimento</th>
+                                <th>Status</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for empresa in empresas %}
+                            <tr class="empresa-row" data-active="{{ 'true' if empresa.active else 'false' }}">
+                                <td class="text-muted fw-bold">#{{ empresa.pk }}</td>
+                                <td>
+                                    <div class="fw-bold">{{ empresa.organization }}</div>
+                                    <small class="text-muted">{{ empresa.presentation or '' }}</small>
+                                </td>
+                                <td>{{ empresa.cnpj }}</td>
+                                <td>{{ empresa.email or '-' }}</td>
+                                <td>
+                                    {% if empresa.expiration %}
+                                        <span class="{{ 'text-danger fw-bold' if empresa.expiration < now else '' }}">
+                                            <i class="far fa-calendar-alt me-1"></i>{{ empresa.expiration.strftime('%d/%m/%Y') }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if empresa.active %}
+                                    <span class="badge bg-success">Ativo</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Inativo</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn-action btn-edit" title="Editar" onclick="editarEmpresa('{{ empresa.pk }}')">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn-action btn-delete" title="Excluir" onclick="excluirEmpresa('{{ empresa.pk }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            <tr id="noResultsRow" style="display: none;">
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    <i class="fas fa-search me-2"></i>Nenhum resultado encontrado para os filtros aplicados.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
         </div>
     </div>
 </div>
+
 
 
 <!-- Modal de Cadastro -->
@@ -222,6 +328,47 @@
 
 {% block extra_js %}
 <script>
+    // Função de filtragem da tabela
+    function filtrarTabela() {
+        const searchText = document.getElementById('inputSearch').value.toLowerCase();
+        const statusFilter = document.getElementById('selectStatus').value;
+        const rows = document.querySelectorAll('.empresa-row');
+        let hasResults = false;
+
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            const isActive = row.getAttribute('data-active') === 'true';
+            
+            const matchesSearch = text.includes(searchText);
+            let matchesStatus = true;
+            
+            if (statusFilter === 'ativo') matchesStatus = isActive;
+            else if (statusFilter === 'inativo') matchesStatus = !isActive;
+
+            if (matchesSearch && matchesStatus) {
+                row.style.display = '';
+                hasResults = true;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Mostrar/ocultar mensagem de "sem resultados"
+        const noResultsRow = document.getElementById('noResultsRow');
+        if (noResultsRow) {
+            noResultsRow.style.display = hasResults ? 'none' : '';
+        }
+    }
+
+    // Adicionar listeners para filtros
+    document.addEventListener('DOMContentLoaded', function () {
+        const inputSearch = document.getElementById('inputSearch');
+        const selectStatus = document.getElementById('selectStatus');
+
+        if (inputSearch) inputSearch.addEventListener('input', filtrarTabela);
+        if (selectStatus) selectStatus.addEventListener('change', filtrarTabela);
+    });
+
     // Função para validar dimensões da imagem
     function validateImageDimensions(file, callback) {
         const img = new Image();
@@ -280,7 +427,8 @@
         ${mensagem}
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
-        document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.card'));
+        const cont = document.querySelector('.empresas-container') || document.body;
+        cont.insertBefore(alertDiv, cont.firstChild);
 
         setTimeout(() => {
             alertDiv.remove();
